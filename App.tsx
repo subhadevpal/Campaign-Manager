@@ -54,26 +54,34 @@ function App() {
       };
       addMessage(analysisResult);
 
-      // Step 3: Send extracted data to webhook
-      await sendDataToWebhook(extractedParams);
-      const successMessage: Message = {
-        id: `${Date.now()}-webhook-success`,
+      // Step 3: Announce sending to webhook
+      const sendingMessage: Message = {
+        id: `${Date.now()}-sending-webhook`,
         sender: Sender.System,
-        type: MessageType.FunctionResult,
+        type: MessageType.FunctionCall,
         content: '',
-        functionResult: {
-          name: 'sendToWorkflow',
-          result: { status: 'Success', message: 'Extracted data sent to workflow.' },
-        },
+        functionCall: { name: 'sendToWorkflow', args: extractedParams },
       };
-      addMessage(successMessage);
+      addMessage(sendingMessage);
+
+      // Step 4: Send extracted data to webhook and get response
+      const webhookResponse = await sendDataToWebhook(extractedParams);
+      const aiResponse: Message = {
+        id: `${Date.now()}-webhook-response`,
+        sender: Sender.AI,
+        type: MessageType.Text,
+        content: typeof webhookResponse === 'object' 
+                 ? JSON.stringify(webhookResponse, null, 2) 
+                 : String(webhookResponse),
+      };
+      addMessage(aiResponse);
 
     } catch (error) {
        const errorMessage: Message = {
         id: `${Date.now()}-error`,
         sender: Sender.System,
         type: MessageType.Text,
-        content: `An error occurred: ${(error as Error).message}. Please check the console for details.`,
+        content: `An error occurred: ${(error as Error).message}`,
       };
       addMessage(errorMessage);
     } finally {
@@ -83,26 +91,33 @@ function App() {
   
   const handleProfileSubmit = async () => {
     setIsLoading(true);
+    const sendingMessage: Message = {
+      id: `${Date.now()}-sending-webhook`,
+      sender: Sender.System,
+      type: MessageType.FunctionCall,
+      content: '',
+      functionCall: { name: 'sendToWorkflow', args: campaignParams },
+    };
+    addMessage(sendingMessage);
+
     try {
-      await sendDataToWebhook(campaignParams);
-      const successMessage: Message = {
-        id: `${Date.now()}-webhook-success`,
-        sender: Sender.System,
-        type: MessageType.FunctionResult,
-        content: '',
-        functionResult: {
-          name: 'Campaign Webhook',
-          result: { status: 'Success', message: 'Profile sent to workflow.' },
-        },
+      const webhookResponse = await sendDataToWebhook(campaignParams);
+      const aiResponse: Message = {
+        id: `${Date.now()}-webhook-response`,
+        sender: Sender.AI,
+        type: MessageType.Text,
+        content: typeof webhookResponse === 'object' 
+                 ? JSON.stringify(webhookResponse, null, 2) 
+                 : String(webhookResponse),
       };
-      addMessage(successMessage);
+      addMessage(aiResponse);
       setIsProfileOpen(false); // Close sidebar on mobile after submission
     } catch (error) {
        const errorMessage: Message = {
         id: `${Date.now()}-webhook-error`,
         sender: Sender.System,
         type: MessageType.Text,
-        content: `Webhook Error: Failed to send profile data. Please check the console for details.`,
+        content: `Error: ${(error as Error).message}`,
       };
       addMessage(errorMessage);
     } finally {

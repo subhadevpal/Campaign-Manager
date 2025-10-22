@@ -1,7 +1,8 @@
 import React from 'react';
-import type { Message } from '../types';
+import type { Message, Campaign } from '../types';
 import { Sender } from '../types';
 import { UserIcon, AIIcon } from './Icons';
+import { CampaignCard } from './CampaignCard';
 
 interface MessageBubbleProps {
   message: Message;
@@ -9,6 +10,20 @@ interface MessageBubbleProps {
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   const isUser = message.sender === Sender.User;
+  const isAI = message.sender === Sender.AI;
+
+  let campaignData: Campaign | null = null;
+  
+  if (isAI) {
+    try {
+      const parsed = JSON.parse(message.content);
+      if (parsed.output && Array.isArray(parsed.output) && parsed.output.length > 0 && parsed.output[0].Campaign_ID) {
+        campaignData = parsed.output[0];
+      }
+    } catch (e) {
+      // Content is not a valid campaign JSON, treat as plain text.
+    }
+  }
 
   const bubbleClasses = isUser
     ? 'bg-gradient-to-br from-brand-gradient-start to-brand-gradient-end text-white rounded-br-none'
@@ -28,7 +43,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         </div>
       </div>
       <div className={`max-w-xl p-4 rounded-lg shadow-md ${bubbleClasses} ${textContainerClasses}`}>
-        <p className="whitespace-pre-wrap text-base">{message.content}</p>
+        {campaignData ? (
+          <CampaignCard campaign={campaignData} />
+        ) : (
+          <p className="whitespace-pre-wrap text-base">{message.content}</p>
+        )}
       </div>
     </div>
   );

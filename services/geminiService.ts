@@ -82,16 +82,37 @@ export async function sendDataToWebhook(payload: Record<string, any>) {
       body: JSON.stringify(payload),
     });
 
+    const responseText = await response.text();
+
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error('Webhook response error:', errorBody);
-      throw new Error(`Webhook failed with status: ${response.status}`);
+      console.error('Webhook response error:', responseText);
+      try {
+          const errorJson = JSON.parse(responseText);
+          if (errorJson.message) {
+              throw new Error(`Workflow Error: ${errorJson.message} (Status: ${response.status})`);
+          }
+      } catch (e) {
+          // Fallback if error body is not json or doesn't have a message field
+          throw new Error(`Webhook failed with status: ${response.status}. Response: ${responseText}`);
+      }
+      // This line is a fallback, should not be reached if above logic works
+      throw new Error(`Webhook failed with status: ${response.status}.`);
     }
 
     console.log('Webhook call successful');
-    return await response.json();
+    try {
+        // Assume the successful response is JSON
+        return JSON.parse(responseText);
+    } catch (e) {
+        // If not, return it as plain text
+        return responseText;
+    }
   } catch (error) {
     console.error('Error calling webhook:', error);
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        throw new Error('Network Error: Failed to fetch. This may be a CORS issue. Please ensure the webhook server allows requests from this origin.');
+    }
+    // Re-throw custom errors from the try block or other unexpected errors
     throw error;
   }
 }

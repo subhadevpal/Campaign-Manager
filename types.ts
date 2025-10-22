@@ -38,3 +38,11 @@ export interface CampaignParameters {
   daysOnboarded: string;
   specialFestiveSeason: string;
 }
+
+export interface Campaign {
+  Campaign_Date: string;
+  Body: string;
+  Campaign_ID: string;
+  Header: string;
+  Channel: string[];
+}
