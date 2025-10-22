@@ -1,0 +1,5 @@
+{
+  "name": "Campaign Genius",
+  "description": "A chatbot for Product Managers at a large Indian Bank to generate creative campaign ideas for credit card customers. This app can be integrated with external webhooks & APIs.",
+  "requestFramePermissions": []
+}
