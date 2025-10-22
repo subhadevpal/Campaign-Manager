@@ -12,8 +12,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
+      const textarea = (e.currentTarget as HTMLFormElement).querySelector('textarea');
       onSendMessage(input.trim());
       setInput('');
+      if (textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.overflowY = 'hidden';
+      }
     }
   };
 
@@ -24,22 +29,40 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }
     }
   };
 
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    // Auto-grow logic
+    e.target.style.height = 'auto';
+    const maxHeight = 200; // 200px max-height
+    const scrollHeight = e.target.scrollHeight;
+
+    if (scrollHeight > maxHeight) {
+      e.target.style.height = `${maxHeight}px`;
+      e.target.style.overflowY = 'auto';
+    } else {
+      e.target.style.height = `${scrollHeight}px`;
+      e.target.style.overflowY = 'hidden';
+    }
+  };
+
+
   return (
     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
       <div className="relative">
         <textarea
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={handleInput}
           onKeyDown={handleKeyDown}
-          placeholder="Generate a Diwali campaign..."
-          className="w-full p-4 pr-16 bg-purple-light/60 border border-purple-secondary/50 rounded-lg focus:ring-2 focus:ring-accent-yellow focus:outline-none resize-none text-white placeholder-gray-400"
+          placeholder="Generate a Diwali campaign for young professionals..."
+          className="w-full p-4 pr-16 bg-purple-light border border-purple-secondary/50 rounded-xl focus:ring-2 focus:ring-accent-yellow focus:border-accent-yellow focus:outline-none resize-none text-text-primary placeholder-text-secondary transition-colors text-base"
           rows={1}
+          style={{ overflowY: 'hidden' }}
           disabled={isLoading}
         />
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="absolute top-1/2 right-3 transform -translate-y-1/2 p-2 rounded-full bg-brand-gradient-start text-white hover:opacity-90 disabled:bg-purple-secondary/50 disabled:cursor-not-allowed transition-all"
+          className="absolute bottom-3.5 right-4 p-2.5 rounded-full bg-accent-yellow text-purple-deep hover:opacity-90 disabled:bg-purple-secondary/50 disabled:cursor-not-allowed transition-all"
           aria-label="Send message"
         >
           <SendIcon className="w-5 h-5" />

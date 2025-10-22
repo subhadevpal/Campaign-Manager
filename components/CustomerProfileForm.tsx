@@ -26,19 +26,19 @@ export const CustomerProfileForm: React.FC<CustomerProfileFormProps> = ({ profil
     }
   };
 
-  const inputClasses = "w-full p-3 bg-purple-light/60 border border-purple-secondary/50 rounded-md focus:ring-2 focus:ring-accent-yellow focus:outline-none text-white placeholder-gray-400";
-  const labelClasses = "block text-sm font-medium text-white/80 mb-2";
+  const inputClasses = "w-full p-3 bg-purple-light/60 border border-purple-secondary/50 rounded-lg focus:ring-2 focus:ring-accent-yellow focus:border-accent-yellow focus:outline-none text-text-primary placeholder-text-secondary transition-colors";
+  const labelClasses = "block text-sm font-medium text-text-secondary mb-2";
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col text-text-primary">
        <div className="flex items-center justify-between mb-8">
          <h2 className="text-2xl font-bold text-white">Customer Profile</h2>
-         <button onClick={onClose} className="md:hidden p-1 text-white/70 hover:text-white" aria-label="Close customer profile menu">
+         <button onClick={onClose} className="md:hidden p-1 text-text-secondary hover:text-text-primary" aria-label="Close customer profile menu">
             <XIcon className="w-6 h-6" />
          </button>
        </div>
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
-        <div className="space-y-6 flex-1 overflow-y-auto pr-2 -mr-2">
+        <div className="space-y-6 flex-1 overflow-y-auto pr-3 -mr-4 custom-scrollbar">
           <div>
             <label htmlFor="merchantCategory" className={labelClasses}>Favourite Merchant Category</label>
             <input type="text" name="merchantCategory" id="merchantCategory" value={profile.merchantCategory} onChange={handleChange} className={inputClasses} placeholder="e.g., Online Shopping" />
@@ -78,11 +78,11 @@ export const CustomerProfileForm: React.FC<CustomerProfileFormProps> = ({ profil
             <input type="text" name="specialFestiveSeason" id="specialFestiveSeason" value={profile.specialFestiveSeason} onChange={handleChange} className={inputClasses} placeholder="e.g., Diwali, Christmas" />
           </div>
         </div>
-        <div className="mt-8">
+        <div className="mt-8 pt-6 border-t border-purple-secondary/20">
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 p-3 bg-accent-yellow text-purple-deep font-bold rounded-lg hover:opacity-90 disabled:bg-accent-yellow/50 disabled:cursor-not-allowed transition-all shadow-lg"
+              className="w-full flex items-center justify-center gap-3 p-4 bg-accent-yellow text-purple-deep font-bold rounded-xl hover:opacity-90 disabled:bg-accent-yellow/50 disabled:cursor-not-allowed transition-all shadow-lg shadow-accent-yellow/20"
             >
               <SparklesIcon className="w-5 h-5"/>
               Generate Campaign

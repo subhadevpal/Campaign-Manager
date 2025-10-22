@@ -47,3 +47,26 @@ export const MenuIcon = (props: React.SVGProps<SVGSVGElement>) => (
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
     </svg>
   );
+
+  export const RestoreIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+    </svg>
+);
+
+export const PixelPulseLogo = () => (
+    <div className="flex items-center gap-2">
+      <svg
+        className="w-9 h-9 text-text-primary"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+        fillRule="evenodd"
+        clipRule="evenodd"
+      >
+        <path d="M4 3C3.44772 3 3 3.44772 3 4V20C3 20.5523 3.44772 21 4 21H20C20.5523 21 21 20.5523 21 20V4C21 3.44772 20.5523 3 20 3H4Z M9 8V16 H11 V12 H13 C14.6569 12 16 11.1046 16 10 C16 8.89543 14.6569 8 13 8 H9Z M11 9H13 C13.5523 9 14 9.44772 14 10 C14 10.5523 13.5523 11 13 11 H11 V9Z" />
+      </svg>
+      <span className="text-2xl font-bold text-text-primary tracking-wider">Pixel Pulse</span>
+    </div>
+  );

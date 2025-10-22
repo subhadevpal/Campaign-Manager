@@ -21,7 +21,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onA
   useEffect(scrollToBottom, [messages, isLoading]);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-10">
       {messages.map((msg) => {
         switch (msg.type) {
           case MessageType.FunctionCall:
@@ -41,7 +41,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onA
       })}
       {isLoading && (
         <div className="flex justify-start">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 pl-12">
                 <div className="w-2.5 h-2.5 bg-purple-secondary rounded-full animate-pulse"></div>
                 <div className="w-2.5 h-2.5 bg-purple-secondary rounded-full animate-pulse delay-75"></div>
                 <div className="w-2.5 h-2.5 bg-purple-secondary rounded-full animate-pulse delay-150"></div>

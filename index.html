@@ -4,21 +4,23 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Campaign Genius</title>
+    <title>Pixel Pulse</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              'purple-deep': '#2A2140', // Dark, slightly grayer background
-              'purple-primary': '#3A315D', // Header, less saturated
-              'purple-secondary': '#4F4673', // Muted AI message bubble
-              'purple-light': '#332C50', // Darker input background
-              'accent-yellow': '#D4B74C', // Faded gold/yellow accent
-              'accent-teal': '#2DAA9A', // Muted teal for success states
-              'brand-gradient-start': '#6B4DBF', // Softer gradient start
-              'brand-gradient-end': '#442E8F', // Softer gradient end
+              'purple-deep': '#1A1625',
+              'purple-primary': '#231E34',
+              'purple-secondary': '#3E3852',
+              'purple-light': '#2C2744',
+              'accent-yellow': '#F5C518',
+              'accent-teal': '#34D399',
+              'text-primary': '#F0F0F0',
+              'text-secondary': '#A09CB0',
+              'brand-gradient-start': '#8A2BE2',
+              'brand-gradient-end': '#4B0082',
             },
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
@@ -30,6 +32,25 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      .custom-scrollbar::-webkit-scrollbar,
+      textarea::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track,
+      textarea::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb,
+      textarea::-webkit-scrollbar-thumb {
+        background: #3E3852;
+        border-radius: 3px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+      textarea::-webkit-scrollbar-thumb:hover {
+        background: #4F4673; 
+      }
+    </style>
   <script type="importmap">
 {
   "imports": {
@@ -41,7 +62,7 @@
 }
 </script>
 </head>
-  <body class="bg-purple-deep text-white antialiased">
+  <body class="bg-purple-deep text-text-primary antialiased">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

@@ -28,23 +28,23 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLoading
   }
 
   const bubbleClasses = isUser
-    ? 'bg-gradient-to-br from-brand-gradient-start to-brand-gradient-end text-white rounded-br-none'
-    : 'bg-purple-secondary text-white/90 rounded-bl-none';
+    ? 'bg-gradient-to-br from-brand-gradient-start to-brand-gradient-end text-white rounded-2xl rounded-br-lg'
+    : 'bg-purple-secondary text-text-primary rounded-2xl rounded-bl-lg';
 
   const containerClasses = isUser ? 'justify-end' : 'justify-start';
   
   const Icon = isUser ? UserIcon : AIIcon;
-  const iconClasses = isUser ? 'order-2' : 'order-1';
+  const iconClasses = isUser ? 'order-2 ml-3' : 'order-1 mr-3';
   const textContainerClasses = isUser ? 'order-1' : 'order-2';
 
   return (
-    <div className={`flex items-start gap-3 ${containerClasses}`}>
+    <div className={`flex items-end gap-0 ${containerClasses}`}>
       <div className={`flex-shrink-0 ${iconClasses}`}>
-        <div className="w-8 h-8 rounded-full bg-purple-secondary flex items-center justify-center shadow-md">
-            <Icon className="w-5 h-5 text-white/80" />
+        <div className="w-10 h-10 rounded-full bg-purple-secondary flex items-center justify-center shadow-md">
+            <Icon className="w-6 h-6 text-text-secondary" />
         </div>
       </div>
-      <div className={`max-w-xl p-4 rounded-lg shadow-md ${bubbleClasses} ${textContainerClasses}`}>
+      <div className={`max-w-2xl p-5 rounded-2xl shadow-lg ${bubbleClasses} ${textContainerClasses}`}>
         {campaignData ? (
           <CampaignCard 
             campaign={campaignData}

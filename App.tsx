@@ -10,7 +10,7 @@ import { Sender, MessageType } from './types';
 
 
 function App() {
-  const { messages, addMessage, isLoading, setIsLoading, updateMessage } = useChat();
+  const { messages, addMessage, isLoading, setIsLoading, updateMessage, createCheckpoint, restoreCheckpoint } = useChat();
   const [campaignParams, setCampaignParams] = useState<CampaignParameters>({
     merchantCategory: '',
     age: '',
@@ -23,6 +23,7 @@ function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   const handleSendMessage = async (text: string) => {
+    createCheckpoint();
     const userMessage: Message = {
       id: Date.now().toString(),
       sender: Sender.User,
@@ -90,6 +91,7 @@ function App() {
   };
   
   const handleProfileSubmit = async () => {
+    createCheckpoint();
     setIsLoading(true);
     const sendingMessage: Message = {
       id: `${Date.now()}-sending-webhook`,
@@ -163,40 +165,44 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen font-sans bg-purple-deep">
-      <Header onMenuClick={() => setIsProfileOpen(true)} />
-      <div className="flex-1 flex overflow-hidden">
-        {/* Mobile Sidebar Overlay */}
-        <div className={`fixed inset-0 z-40 md:hidden transition-opacity ${isProfileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-          <div className="absolute inset-0 bg-black/60" onClick={() => setIsProfileOpen(false)}></div>
-        </div>
+    <>
+      <div className="flex flex-col h-screen font-sans bg-purple-deep text-text-primary">
+        <div className="max-w-screen-2xl mx-auto w-full flex flex-col flex-1">
+          <Header onMenuClick={() => setIsProfileOpen(true)} onRestore={restoreCheckpoint} />
+          <div className="flex-1 flex overflow-hidden">
+            {/* Mobile Sidebar Overlay */}
+            <div className={`fixed inset-0 z-40 md:hidden transition-opacity ${isProfileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+              <div className="absolute inset-0 bg-black/60" onClick={() => setIsProfileOpen(false)}></div>
+            </div>
 
-        {/* Sidebar */}
-        <aside className={`w-full max-w-sm p-4 md:p-6 lg:p-8 overflow-y-auto bg-purple-primary transition-transform transform ${isProfileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:relative md:w-1/3 fixed inset-y-0 left-0 z-50 md:z-auto`}>
-          <CustomerProfileForm 
-            profile={campaignParams} 
-            setProfile={setCampaignParams} 
-            onClose={() => setIsProfileOpen(false)} 
-            onSubmit={handleProfileSubmit}
-            isLoading={isLoading}
-          />
-        </aside>
+            {/* Sidebar */}
+            <aside className={`w-full max-w-sm p-4 md:p-6 lg:p-8 overflow-y-auto bg-purple-primary transition-transform transform ${isProfileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:relative md:w-[400px] lg:w-[420px] flex-shrink-0 fixed inset-y-0 left-0 z-50 md:z-auto`}>
+              <CustomerProfileForm 
+                profile={campaignParams} 
+                setProfile={setCampaignParams} 
+                onClose={() => setIsProfileOpen(false)} 
+                onSubmit={handleProfileSubmit}
+                isLoading={isLoading}
+              />
+            </aside>
 
-        {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col">
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-            <ChatWindow 
-              messages={messages} 
-              isLoading={isLoading}
-              onApproveCampaign={handleApproveCampaign}
-            />
-          </main>
-          <footer className="bg-purple-primary/50 backdrop-blur-sm border-t border-purple-secondary/30 p-4">
-            <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
-          </footer>
+            {/* Main Chat Area */}
+            <div className="flex-1 flex flex-col bg-purple-deep">
+              <main className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-12 flex flex-col justify-end">
+                <ChatWindow 
+                  messages={messages} 
+                  isLoading={isLoading}
+                  onApproveCampaign={handleApproveCampaign}
+                />
+              </main>
+              <footer className="bg-purple-deep border-t border-purple-secondary/30 p-4 md:p-6">
+                <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+              </footer>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
