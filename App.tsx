@@ -4,32 +4,87 @@ import { ChatInput } from './components/ChatInput';
 import { ChatWindow } from './components/ChatWindow';
 import { CustomerProfileForm } from './components/CustomerProfileForm';
 import { useChat } from './hooks/useChat';
-import type { CustomerProfile, Message } from './types';
-import { sendProfileToWebhook } from './services/geminiService';
+import type { CampaignParameters, Message } from './types';
+import { sendDataToWebhook, analyzePromptWithAI } from './services/geminiService';
 import { Sender, MessageType } from './types';
 
 
 function App() {
-  const { messages, sendMessage, isLoading, addMessage } = useChat();
-  const [profile, setProfile] = useState<CustomerProfile>({
+  const { messages, addMessage, isLoading, setIsLoading } = useChat();
+  const [campaignParams, setCampaignParams] = useState<CampaignParameters>({
     merchantCategory: '',
     age: '',
     gender: '',
     userType: '',
     incomeBracket: '',
     daysOnboarded: '',
+    specialFestiveSeason: '',
   });
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const handleSendMessage = async (text: string) => {
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      sender: Sender.User,
+      type: MessageType.Text,
+      content: text,
+    };
+    addMessage(userMessage);
+    setIsLoading(true);
 
-  const handleSendMessage = (text: string) => {
-    sendMessage(text, profile);
+    try {
+      // Step 1: Show AI is analyzing
+      const analyzingMessage: Message = {
+        id: `${Date.now()}-analyzing`,
+        sender: Sender.System,
+        type: MessageType.FunctionCall,
+        content: '',
+        functionCall: { name: 'analyzePrompt', args: { prompt: text } },
+      };
+      addMessage(analyzingMessage);
+
+      // Step 2: Call AI to extract data
+      const extractedParams = await analyzePromptWithAI(text);
+      const analysisResult: Message = {
+        id: `${Date.now()}-analysis-result`,
+        sender: Sender.System,
+        type: MessageType.FunctionResult,
+        content: '',
+        functionResult: { name: 'analyzePrompt', result: extractedParams },
+      };
+      addMessage(analysisResult);
+
+      // Step 3: Send extracted data to webhook
+      await sendDataToWebhook(extractedParams);
+      const successMessage: Message = {
+        id: `${Date.now()}-webhook-success`,
+        sender: Sender.System,
+        type: MessageType.FunctionResult,
+        content: '',
+        functionResult: {
+          name: 'sendToWorkflow',
+          result: { status: 'Success', message: 'Extracted data sent to workflow.' },
+        },
+      };
+      addMessage(successMessage);
+
+    } catch (error) {
+       const errorMessage: Message = {
+        id: `${Date.now()}-error`,
+        sender: Sender.System,
+        type: MessageType.Text,
+        content: `An error occurred: ${(error as Error).message}. Please check the console for details.`,
+      };
+      addMessage(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const handleProfileSubmit = async () => {
-    setIsSubmitting(true);
+    setIsLoading(true);
     try {
-      await sendProfileToWebhook(profile);
+      await sendDataToWebhook(campaignParams);
       const successMessage: Message = {
         id: `${Date.now()}-webhook-success`,
         sender: Sender.System,
@@ -51,7 +106,7 @@ function App() {
       };
       addMessage(errorMessage);
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
@@ -67,11 +122,11 @@ function App() {
         {/* Sidebar */}
         <aside className={`w-full max-w-sm p-4 md:p-6 lg:p-8 overflow-y-auto bg-purple-primary transition-transform transform ${isProfileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:relative md:w-1/3 fixed inset-y-0 left-0 z-50 md:z-auto`}>
           <CustomerProfileForm 
-            profile={profile} 
-            setProfile={setProfile} 
+            profile={campaignParams} 
+            setProfile={setCampaignParams} 
             onClose={() => setIsProfileOpen(false)} 
             onSubmit={handleProfileSubmit}
-            isLoading={isSubmitting}
+            isLoading={isLoading}
           />
         </aside>
 

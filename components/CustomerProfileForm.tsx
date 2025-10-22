@@ -1,10 +1,10 @@
 import React from 'react';
-import type { CustomerProfile } from '../types';
+import type { CampaignParameters } from '../types';
 import { XIcon, SparklesIcon } from './Icons';
 
 interface CustomerProfileFormProps {
-  profile: CustomerProfile;
-  setProfile: React.Dispatch<React.SetStateAction<CustomerProfile>>;
+  profile: CampaignParameters;
+  setProfile: React.Dispatch<React.SetStateAction<CampaignParameters>>;
   onClose: () => void;
   onSubmit: () => void;
   isLoading: boolean;
@@ -72,6 +72,10 @@ export const CustomerProfileForm: React.FC<CustomerProfileFormProps> = ({ profil
           <div>
             <label htmlFor="daysOnboarded" className={labelClasses}>Days Onboarded</label>
             <input type="number" name="daysOnboarded" id="daysOnboarded" value={profile.daysOnboarded} onChange={handleChange} className={inputClasses} placeholder="e.g., 90" />
+          </div>
+           <div>
+            <label htmlFor="specialFestiveSeason" className={labelClasses}>Special Festive Season</label>
+            <input type="text" name="specialFestiveSeason" id="specialFestiveSeason" value={profile.specialFestiveSeason} onChange={handleChange} className={inputClasses} placeholder="e.g., Diwali, Christmas" />
           </div>
         </div>
         <div className="mt-8">

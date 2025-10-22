@@ -29,11 +29,12 @@ export interface Message {
   functionResult?: FunctionResultData;
 }
 
-export interface CustomerProfile {
+export interface CampaignParameters {
   merchantCategory: string;
   age: string;
   gender: string;
   userType: 'Power' | 'Regular' | 'At Risk' | '';
   incomeBracket: string;
   daysOnboarded: string;
+  specialFestiveSeason: string;
 }
