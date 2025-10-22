@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import type { Message } from '../types';
+import type { Message, Campaign } from '../types';
 import { MessageBubble } from './MessageBubble';
 import { FunctionCallBubble } from './FunctionCallBubble';
 import { FunctionResultBubble } from './FunctionResultBubble';
@@ -8,9 +8,10 @@ import { MessageType } from '../types';
 interface ChatWindowProps {
   messages: Message[];
   isLoading: boolean;
+  onApproveCampaign: (campaign: Campaign, messageId: string) => void;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onApproveCampaign }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -28,7 +29,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) =
           case MessageType.FunctionResult:
             return <FunctionResultBubble key={msg.id} functionResult={msg.functionResult!} />;
           default:
-            return <MessageBubble key={msg.id} message={msg} />;
+            return (
+              <MessageBubble 
+                key={msg.id} 
+                message={msg}
+                isLoading={isLoading}
+                onApproveCampaign={onApproveCampaign}
+              />
+            );
         }
       })}
       {isLoading && (

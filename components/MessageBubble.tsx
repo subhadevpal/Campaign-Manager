@@ -6,9 +6,11 @@ import { CampaignCard } from './CampaignCard';
 
 interface MessageBubbleProps {
   message: Message;
+  isLoading: boolean;
+  onApproveCampaign: (campaign: Campaign, messageId: string) => void;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLoading, onApproveCampaign }) => {
   const isUser = message.sender === Sender.User;
   const isAI = message.sender === Sender.AI;
 
@@ -44,7 +46,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       </div>
       <div className={`max-w-xl p-4 rounded-lg shadow-md ${bubbleClasses} ${textContainerClasses}`}>
         {campaignData ? (
-          <CampaignCard campaign={campaignData} />
+          <CampaignCard 
+            campaign={campaignData}
+            onApprove={() => onApproveCampaign(campaignData!, message.id)}
+            isApproved={message.isApproved}
+            isLoading={isLoading}
+          />
         ) : (
           <p className="whitespace-pre-wrap text-base">{message.content}</p>
         )}

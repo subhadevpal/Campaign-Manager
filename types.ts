@@ -27,6 +27,7 @@ export interface Message {
   content: string;
   functionCall?: FunctionCallData;
   functionResult?: FunctionResultData;
+  isApproved?: boolean;
 }
 
 export interface CampaignParameters {

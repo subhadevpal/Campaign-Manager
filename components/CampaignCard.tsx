@@ -1,11 +1,15 @@
 import React from 'react';
 import type { Campaign } from '../types';
+import { CheckCircleIcon } from './Icons';
 
 interface CampaignCardProps {
   campaign: Campaign;
+  onApprove: () => void;
+  isApproved?: boolean;
+  isLoading: boolean;
 }
 
-export const CampaignCard: React.FC<CampaignCardProps> = ({ campaign }) => {
+export const CampaignCard: React.FC<CampaignCardProps> = ({ campaign, onApprove, isApproved, isLoading }) => {
   return (
     <div className="space-y-4 text-white">
       <h3 className="text-xl font-bold text-accent-yellow">{campaign.Header}</h3>
@@ -31,6 +35,21 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({ campaign }) => {
             </span>
           ))}
         </div>
+      </div>
+
+      <div className="border-t border-purple-light/50 pt-4 mt-4">
+        <button
+          onClick={onApprove}
+          disabled={isApproved || isLoading}
+          className={`w-full flex items-center justify-center gap-2 p-2.5 font-bold rounded-lg transition-all shadow-md
+            ${isApproved 
+              ? 'bg-accent-teal/80 text-white cursor-default' 
+              : 'bg-accent-yellow text-purple-deep hover:opacity-90 disabled:bg-accent-yellow/50 disabled:cursor-not-allowed'
+            }`}
+        >
+          <CheckCircleIcon className="w-5 h-5" />
+          {isApproved ? 'Approved' : 'Approve'}
+        </button>
       </div>
     </div>
   );

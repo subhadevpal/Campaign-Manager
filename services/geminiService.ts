@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { CampaignParameters } from "../types";
+import type { CampaignParameters, Campaign } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -113,6 +113,59 @@ export async function sendDataToWebhook(payload: Record<string, any>) {
         throw new Error('Network Error: Failed to fetch. This may be a CORS issue. Please ensure the webhook server allows requests from this origin.');
     }
     // Re-throw custom errors from the try block or other unexpected errors
+    throw error;
+  }
+}
+
+export async function sendApprovalToWebhook(payload: Campaign) {
+  const webhookUrl = 'https://subhadevp.app.n8n.cloud/webhook-test/4e00e3d9-587c-4e17-a287-56d77ee0d684';
+  
+  // Transform the payload to the format expected by the webhook
+  const webhookPayload = [
+    {
+      "Campaign ID": payload.Campaign_ID,
+      "Campaign Date": payload.Campaign_Date,
+      "Channel": payload.Channel,
+      "Header": payload.Header,
+      "Body": payload.Body,
+    },
+  ];
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(webhookPayload),
+    });
+
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      console.error('Approval webhook response error:', responseText);
+      try {
+          const errorJson = JSON.parse(responseText);
+          if (errorJson.message) {
+              throw new Error(`Approval Workflow Error: ${errorJson.message} (Status: ${response.status})`);
+          }
+      } catch (e) {
+          throw new Error(`Approval webhook failed with status: ${response.status}. Response: ${responseText}`);
+      }
+      throw new Error(`Approval webhook failed with status: ${response.status}.`);
+    }
+
+    console.log('Approval webhook call successful');
+    try {
+        return JSON.parse(responseText);
+    } catch (e) {
+        return responseText;
+    }
+  } catch (error) {
+    console.error('Error calling approval webhook:', error);
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        throw new Error('Network Error: Failed to fetch approval webhook. This may be a CORS issue.');
+    }
     throw error;
   }
 }

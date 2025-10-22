@@ -17,5 +17,13 @@ export const useChat = () => {
     setMessages(prev => [...prev, message]);
   }, []);
 
-  return { messages, addMessage, isLoading, setIsLoading };
+  const updateMessage = useCallback((messageId: string, updates: Partial<Message>) => {
+    setMessages(prev => 
+      prev.map(msg => 
+        msg.id === messageId ? { ...msg, ...updates } : msg
+      )
+    );
+  }, []);
+
+  return { messages, addMessage, isLoading, setIsLoading, updateMessage };
 };

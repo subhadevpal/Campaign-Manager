@@ -4,13 +4,13 @@ import { ChatInput } from './components/ChatInput';
 import { ChatWindow } from './components/ChatWindow';
 import { CustomerProfileForm } from './components/CustomerProfileForm';
 import { useChat } from './hooks/useChat';
-import type { CampaignParameters, Message } from './types';
-import { sendDataToWebhook, analyzePromptWithAI } from './services/geminiService';
+import type { CampaignParameters, Message, Campaign } from './types';
+import { sendDataToWebhook, analyzePromptWithAI, sendApprovalToWebhook } from './services/geminiService';
 import { Sender, MessageType } from './types';
 
 
 function App() {
-  const { messages, addMessage, isLoading, setIsLoading } = useChat();
+  const { messages, addMessage, isLoading, setIsLoading, updateMessage } = useChat();
   const [campaignParams, setCampaignParams] = useState<CampaignParameters>({
     merchantCategory: '',
     age: '',
@@ -125,6 +125,43 @@ function App() {
     }
   };
 
+  const handleApproveCampaign = async (campaign: Campaign, messageId: string) => {
+    setIsLoading(true);
+    const approvingMessage: Message = {
+      id: `${Date.now()}-approving`,
+      sender: Sender.System,
+      type: MessageType.Text,
+      content: `Approving campaign "${campaign.Campaign_ID}"...`,
+    };
+    addMessage(approvingMessage);
+
+    try {
+      const approvalResponse = await sendApprovalToWebhook(campaign);
+      
+      const responseMessage: Message = {
+        id: `${Date.now()}-approval-response`,
+        sender: Sender.System,
+        type: MessageType.Text,
+        content: `Approval response: ${typeof approvalResponse === 'object' ? JSON.stringify(approvalResponse, null, 2) : approvalResponse}`,
+      };
+      addMessage(responseMessage);
+
+      // Mark the original message as approved
+      updateMessage(messageId, { isApproved: true });
+
+    } catch (error) {
+       const errorMessage: Message = {
+        id: `${Date.now()}-approval-error`,
+        sender: Sender.System,
+        type: MessageType.Text,
+        content: `Approval failed: ${(error as Error).message}`,
+      };
+      addMessage(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen font-sans bg-purple-deep">
       <Header onMenuClick={() => setIsProfileOpen(true)} />
@@ -148,7 +185,11 @@ function App() {
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col">
           <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-            <ChatWindow messages={messages} isLoading={isLoading} />
+            <ChatWindow 
+              messages={messages} 
+              isLoading={isLoading}
+              onApproveCampaign={handleApproveCampaign}
+            />
           </main>
           <footer className="bg-purple-primary/50 backdrop-blur-sm border-t border-purple-secondary/30 p-4">
             <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
