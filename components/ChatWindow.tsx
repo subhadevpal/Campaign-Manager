@@ -3,7 +3,8 @@ import type { Message, Campaign } from '../types';
 import { MessageBubble } from './MessageBubble';
 import { FunctionCallBubble } from './FunctionCallBubble';
 import { FunctionResultBubble } from './FunctionResultBubble';
-import { MessageType } from '../types';
+import { MessageType, Sender } from '../types';
+import { AIIcon } from './Icons';
 
 interface ChatWindowProps {
   messages: Message[];
@@ -40,11 +41,18 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onA
         }
       })}
       {isLoading && (
-        <div className="flex justify-start">
-            <div className="flex items-center space-x-2 pl-12">
-                <div className="w-2.5 h-2.5 bg-purple-secondary rounded-full animate-pulse"></div>
-                <div className="w-2.5 h-2.5 bg-purple-secondary rounded-full animate-pulse delay-75"></div>
-                <div className="w-2.5 h-2.5 bg-purple-secondary rounded-full animate-pulse delay-150"></div>
+         <div className="flex items-end gap-0 justify-start animate-fade-in-up">
+            <div className="flex-shrink-0 order-1 mr-3">
+                <div className="w-10 h-10 rounded-full bg-purple-secondary flex items-center justify-center shadow-md">
+                    <AIIcon className="w-6 h-6 text-text-secondary" />
+                </div>
+            </div>
+            <div className="max-w-2xl p-5 rounded-2xl shadow-lg bg-purple-secondary text-text-primary rounded-bl-lg order-2">
+                <div className="flex items-center space-x-2">
+                    <div className="w-2.5 h-2.5 bg-purple-light rounded-full animate-pulse-bubble"></div>
+                    <div className="w-2.5 h-2.5 bg-purple-light rounded-full animate-pulse-bubble" style={{animationDelay: '0.2s'}}></div>
+                    <div className="w-2.5 h-2.5 bg-purple-light rounded-full animate-pulse-bubble" style={{animationDelay: '0.4s'}}></div>
+                </div>
             </div>
         </div>
       )}

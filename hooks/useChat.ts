@@ -8,7 +8,7 @@ export const useChat = () => {
       id: 'initial-ai-message',
       sender: Sender.AI,
       type: MessageType.Text,
-      content: "Hello! I'm Campaign Genius. Describe the campaign you'd like to create in the chat, and I'll structure the data for your workflow. Or, use the form to enter details directly.",
+      content: "Hello! I'm Pixel Pulse. To get started, please provide a name for your customer segment.",
     }
   ];
   const [messages, setMessages] = useState<Message[]>(initialMessages);

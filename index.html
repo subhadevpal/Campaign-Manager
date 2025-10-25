@@ -25,6 +25,20 @@
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
             },
+            animation: {
+              'fade-in-up': 'fade-in-up 0.5s ease-out forwards',
+              'pulse-bubble': 'pulse-bubble 1.4s infinite ease-in-out',
+            },
+            keyframes: {
+              'fade-in-up': {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              'pulse-bubble': {
+                '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+                '50%': { opacity: '0.5', transform: 'scale(0.95)' },
+              },
+            },
           },
         },
       };

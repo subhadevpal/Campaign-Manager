@@ -4,9 +4,10 @@ import { SendIcon } from './Icons';
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   isLoading: boolean;
+  isSegmentNameSet: boolean;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
+export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, isSegmentNameSet }) => {
   const [input, setInput] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -45,6 +46,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }
     }
   };
 
+  const placeholderText = isSegmentNameSet
+    ? "Generate a Diwali campaign for young professionals..."
+    : "Enter segment name...";
+
 
   return (
     <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
@@ -53,7 +58,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }
           value={input}
           onChange={handleInput}
           onKeyDown={handleKeyDown}
-          placeholder="Generate a Diwali campaign for young professionals..."
+          placeholder={placeholderText}
           className="w-full p-4 pr-16 bg-purple-light border border-purple-secondary/50 rounded-xl focus:ring-2 focus:ring-accent-yellow focus:border-accent-yellow focus:outline-none resize-none text-text-primary placeholder-text-secondary transition-colors text-base"
           rows={1}
           style={{ overflowY: 'hidden' }}

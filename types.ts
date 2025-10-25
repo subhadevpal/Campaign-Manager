@@ -31,6 +31,7 @@ export interface Message {
 }
 
 export interface CampaignParameters {
+  segmentName: string;
   merchantCategory: string;
   age: string;
   gender: string;

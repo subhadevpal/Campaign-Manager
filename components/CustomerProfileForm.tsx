@@ -21,7 +21,7 @@ export const CustomerProfileForm: React.FC<CustomerProfileFormProps> = ({ profil
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoading) {
+    if (!isLoading && profile.segmentName.trim()) {
       onSubmit();
     }
   };
@@ -33,12 +33,27 @@ export const CustomerProfileForm: React.FC<CustomerProfileFormProps> = ({ profil
     <div className="h-full flex flex-col text-text-primary">
        <div className="flex items-center justify-between mb-8">
          <h2 className="text-2xl font-bold text-white">Customer Profile</h2>
-         <button onClick={onClose} className="md:hidden p-1 text-text-secondary hover:text-text-primary" aria-label="Close customer profile menu">
+         <button onClick={onClose} className="p-1 text-text-secondary hover:text-text-primary" aria-label="Close customer profile menu">
             <XIcon className="w-6 h-6" />
          </button>
        </div>
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
         <div className="space-y-6 flex-1 overflow-y-auto pr-3 -mr-4 custom-scrollbar">
+          <div>
+            <label htmlFor="segmentName" className={labelClasses}>
+              Segment Name <span className="text-accent-yellow">*</span>
+            </label>
+            <input 
+              type="text" 
+              name="segmentName" 
+              id="segmentName" 
+              value={profile.segmentName} 
+              onChange={handleChange} 
+              className={inputClasses} 
+              placeholder="e.g., Young Professionals" 
+              required 
+            />
+          </div>
           <div>
             <label htmlFor="merchantCategory" className={labelClasses}>Favourite Merchant Category</label>
             <input type="text" name="merchantCategory" id="merchantCategory" value={profile.merchantCategory} onChange={handleChange} className={inputClasses} placeholder="e.g., Online Shopping" />
@@ -66,7 +81,7 @@ export const CustomerProfileForm: React.FC<CustomerProfileFormProps> = ({ profil
             </select>
           </div>
           <div>
-            <label htmlFor="incomeBracket" className={labelClasses}>Income Bracket (Annum)</label>
+            <label htmlFor="incomeBracket" className={labelClasses}>Income Bracket (LPA)</label>
             <input type="text" name="incomeBracket" id="incomeBracket" value={profile.incomeBracket} onChange={handleChange} className={inputClasses} placeholder="e.g., 10-15 LPA" />
           </div>
           <div>
@@ -81,7 +96,7 @@ export const CustomerProfileForm: React.FC<CustomerProfileFormProps> = ({ profil
         <div className="mt-8 pt-6 border-t border-purple-secondary/20">
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !profile.segmentName.trim()}
               className="w-full flex items-center justify-center gap-3 p-4 bg-accent-yellow text-purple-deep font-bold rounded-xl hover:opacity-90 disabled:bg-accent-yellow/50 disabled:cursor-not-allowed transition-all shadow-lg shadow-accent-yellow/20"
             >
               <SparklesIcon className="w-5 h-5"/>

@@ -8,7 +8,7 @@ interface FunctionResultBubbleProps {
 
 export const FunctionResultBubble: React.FC<FunctionResultBubbleProps> = ({ functionResult }) => {
   return (
-    <div className="flex justify-center items-center my-4">
+    <div className="flex justify-center items-center my-4 animate-fade-in-up">
       <div className="flex items-center gap-3 p-3 bg-purple-light/50 border border-purple-secondary/50 text-text-secondary rounded-lg text-sm shadow-sm w-full max-w-2xl">
         <CheckCircleIcon className="w-5 h-5 flex-shrink-0 text-accent-teal" />
         <div className="overflow-x-auto">

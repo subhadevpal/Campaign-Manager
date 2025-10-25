@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { ChatInput } from './components/ChatInput';
@@ -5,13 +6,14 @@ import { ChatWindow } from './components/ChatWindow';
 import { CustomerProfileForm } from './components/CustomerProfileForm';
 import { useChat } from './hooks/useChat';
 import type { CampaignParameters, Message, Campaign } from './types';
-import { sendDataToWebhook, analyzePromptWithAI, sendApprovalToWebhook } from './services/geminiService';
+import { sendDataToWebhook, analyzePromptWithAI, sendApprovalToWebhook, generateApprovalMessage, validateUserInput } from './services/geminiService';
 import { Sender, MessageType } from './types';
 
 
 function App() {
   const { messages, addMessage, isLoading, setIsLoading, updateMessage, createCheckpoint, restoreCheckpoint } = useChat();
   const [campaignParams, setCampaignParams] = useState<CampaignParameters>({
+    segmentName: '',
     merchantCategory: '',
     age: '',
     gender: '',
@@ -23,7 +25,6 @@ function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   const handleSendMessage = async (text: string) => {
-    createCheckpoint();
     const userMessage: Message = {
       id: Date.now().toString(),
       sender: Sender.User,
@@ -34,49 +35,94 @@ function App() {
     setIsLoading(true);
 
     try {
-      // Step 1: Show AI is analyzing
-      const analyzingMessage: Message = {
-        id: `${Date.now()}-analyzing`,
-        sender: Sender.System,
-        type: MessageType.FunctionCall,
-        content: '',
-        functionCall: { name: 'analyzePrompt', args: { prompt: text } },
-      };
-      addMessage(analyzingMessage);
+      if (!campaignParams.segmentName) {
+        // CONTEXT: Expecting a segment name
+        const validation = await validateUserInput(text, 'segment_name');
 
-      // Step 2: Call AI to extract data
-      const extractedParams = await analyzePromptWithAI(text);
-      const analysisResult: Message = {
-        id: `${Date.now()}-analysis-result`,
-        sender: Sender.System,
-        type: MessageType.FunctionResult,
-        content: '',
-        functionResult: { name: 'analyzePrompt', result: extractedParams },
-      };
-      addMessage(analysisResult);
+        if (!validation.isValid) {
+          const aiResponse: Message = {
+            id: `${Date.now()}-invalid-segment`,
+            sender: Sender.AI,
+            type: MessageType.Text,
+            content: validation.feedback || "I'm sorry, I'm not sure I understand. Could you please provide a name for your customer segment? For example, 'Frequent Travelers' or 'Young Professionals'.",
+          };
+          addMessage(aiResponse);
+          return;
+        }
+        
+        // It's a valid segment name, proceed
+        setCampaignParams(prev => ({ ...prev, segmentName: text }));
+        const aiResponse: Message = {
+          id: `${Date.now()}-segment-set`,
+          sender: Sender.AI,
+          type: MessageType.Text,
+          content: `Great! The segment is named "${text}". Now, please describe the customers in this segment. For example, you can mention their age, income, interests, or spending habits.`,
+        };
+        addMessage(aiResponse);
 
-      // Step 3: Announce sending to webhook
-      const sendingMessage: Message = {
-        id: `${Date.now()}-sending-webhook`,
-        sender: Sender.System,
-        type: MessageType.FunctionCall,
-        content: '',
-        functionCall: { name: 'sendToWorkflow', args: extractedParams },
-      };
-      addMessage(sendingMessage);
+      } else {
+        // CONTEXT: Expecting campaign details
+        const validation = await validateUserInput(text, 'campaign_details');
 
-      // Step 4: Send extracted data to webhook and get response
-      const webhookResponse = await sendDataToWebhook(extractedParams);
-      const aiResponse: Message = {
-        id: `${Date.now()}-webhook-response`,
-        sender: Sender.AI,
-        type: MessageType.Text,
-        content: typeof webhookResponse === 'object' 
-                 ? JSON.stringify(webhookResponse, null, 2) 
-                 : String(webhookResponse),
-      };
-      addMessage(aiResponse);
+        if (!validation.isValid) {
+          const aiResponse: Message = {
+            id: `${Date.now()}-invalid-details`,
+            sender: Sender.AI,
+            type: MessageType.Text,
+            content: validation.feedback || "My apologies, that doesn't look like a campaign description. Could you tell me about the campaign you have in mind? For instance, 'A Diwali offer for new customers'.",
+          };
+          addMessage(aiResponse);
+          return;
+        }
 
+        // It's valid campaign details, proceed with the full flow
+        createCheckpoint();
+        
+        const analyzingMessage: Message = {
+          id: `${Date.now()}-analyzing`,
+          sender: Sender.System,
+          type: MessageType.FunctionCall,
+          content: '',
+          functionCall: { name: 'analyzePrompt', args: { prompt: text } },
+        };
+        addMessage(analyzingMessage);
+
+        const extractedPartialParams = await analyzePromptWithAI(text);
+        const fullExtractedParams: CampaignParameters = {
+          ...campaignParams,
+          ...extractedPartialParams,
+        };
+        setCampaignParams(fullExtractedParams);
+
+        const analysisResult: Message = {
+          id: `${Date.now()}-analysis-result`,
+          sender: Sender.System,
+          type: MessageType.FunctionResult,
+          content: '',
+          functionResult: { name: 'analyzePrompt', result: fullExtractedParams },
+        };
+        addMessage(analysisResult);
+
+        const sendingMessage: Message = {
+          id: `${Date.now()}-sending-webhook`,
+          sender: Sender.System,
+          type: MessageType.FunctionCall,
+          content: '',
+          functionCall: { name: 'sendToWorkflow', args: fullExtractedParams },
+        };
+        addMessage(sendingMessage);
+
+        const webhookResponse = await sendDataToWebhook(fullExtractedParams);
+        const aiResponse: Message = {
+          id: `${Date.now()}-webhook-response`,
+          sender: Sender.AI,
+          type: MessageType.Text,
+          content: typeof webhookResponse === 'object' 
+                   ? JSON.stringify(webhookResponse, null, 2) 
+                   : String(webhookResponse),
+        };
+        addMessage(aiResponse);
+      }
     } catch (error) {
        const errorMessage: Message = {
         id: `${Date.now()}-error`,
@@ -91,6 +137,17 @@ function App() {
   };
   
   const handleProfileSubmit = async () => {
+    if (!campaignParams.segmentName.trim()) {
+      const errorMessage: Message = {
+        id: `${Date.now()}-validation-error`,
+        sender: Sender.System,
+        type: MessageType.Text,
+        content: `Error: Segment Name is a required field.`,
+      };
+      addMessage(errorMessage);
+      return;
+    }
+
     createCheckpoint();
     setIsLoading(true);
     const sendingMessage: Message = {
@@ -138,21 +195,25 @@ function App() {
     addMessage(approvingMessage);
 
     try {
-      const approvalResponse = await sendApprovalToWebhook(campaign);
-      
-      const responseMessage: Message = {
-        id: `${Date.now()}-approval-response`,
-        sender: Sender.System,
+      // Wait for the webhook to confirm the approval, sending both output and input data
+      await sendApprovalToWebhook(campaign, campaignParams);
+
+      // Generate the AI success message
+      const successMessageContent = await generateApprovalMessage(campaign);
+
+      // Display the AI-generated success message
+      const successMessage: Message = {
+        id: `${Date.now()}-approval-success`,
+        sender: Sender.AI,
         type: MessageType.Text,
-        content: `Approval response: ${typeof approvalResponse === 'object' ? JSON.stringify(approvalResponse, null, 2) : approvalResponse}`,
+        content: successMessageContent,
       };
-      addMessage(responseMessage);
+      addMessage(successMessage);
 
-      // Mark the original message as approved
+      // Mark the original campaign message as approved
       updateMessage(messageId, { isApproved: true });
-
     } catch (error) {
-       const errorMessage: Message = {
+      const errorMessage: Message = {
         id: `${Date.now()}-approval-error`,
         sender: Sender.System,
         type: MessageType.Text,
@@ -170,13 +231,13 @@ function App() {
         <div className="max-w-screen-2xl mx-auto w-full flex flex-col flex-1">
           <Header onMenuClick={() => setIsProfileOpen(true)} onRestore={restoreCheckpoint} />
           <div className="flex-1 flex overflow-hidden">
-            {/* Mobile Sidebar Overlay */}
-            <div className={`fixed inset-0 z-40 md:hidden transition-opacity ${isProfileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            {/* Sidebar Overlay */}
+            <div className={`fixed inset-0 z-40 transition-opacity ${isProfileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
               <div className="absolute inset-0 bg-black/60" onClick={() => setIsProfileOpen(false)}></div>
             </div>
 
             {/* Sidebar */}
-            <aside className={`w-full max-w-sm p-4 md:p-6 lg:p-8 overflow-y-auto bg-purple-primary transition-transform transform ${isProfileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:relative md:w-[400px] lg:w-[420px] flex-shrink-0 fixed inset-y-0 left-0 z-50 md:z-auto`}>
+            <aside className={`w-full max-w-sm p-4 md:p-6 lg:p-8 overflow-y-auto bg-purple-primary transition-transform transform ${isProfileOpen ? 'translate-x-0' : '-translate-x-full'} flex-shrink-0 fixed inset-y-0 left-0 z-50`}>
               <CustomerProfileForm 
                 profile={campaignParams} 
                 setProfile={setCampaignParams} 
@@ -196,7 +257,11 @@ function App() {
                 />
               </main>
               <footer className="bg-purple-deep border-t border-purple-secondary/30 p-4 md:p-6">
-                <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+                <ChatInput 
+                  onSendMessage={handleSendMessage} 
+                  isLoading={isLoading} 
+                  isSegmentNameSet={!!campaignParams.segmentName}
+                />
               </footer>
             </div>
           </div>

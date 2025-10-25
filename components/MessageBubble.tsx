@@ -38,7 +38,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLoading
   const textContainerClasses = isUser ? 'order-1' : 'order-2';
 
   return (
-    <div className={`flex items-end gap-0 ${containerClasses}`}>
+    <div className={`flex items-end gap-0 ${containerClasses} animate-fade-in-up`}>
       <div className={`flex-shrink-0 ${iconClasses}`}>
         <div className="w-10 h-10 rounded-full bg-purple-secondary flex items-center justify-center shadow-md">
             <Icon className="w-6 h-6 text-text-secondary" />
