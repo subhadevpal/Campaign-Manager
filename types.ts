@@ -33,6 +33,7 @@ export interface Message {
 
 export interface CampaignParameters {
   segmentName: string;
+  campaignType: 'activation' | 'retention' | '';
   merchantCategory: string;
   age: string;
   gender: string;

@@ -7,6 +7,10 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const campaignSchema = {
   type: Type.OBJECT,
   properties: {
+    campaignType: {
+        type: Type.STRING,
+        description: "The type of campaign. This must be either 'activation' for acquiring new customers or engaging inactive ones, or 'retention' for keeping existing customers. If the user's prompt implies one of these, extract it."
+    },
     merchantCategory: {
       type: Type.STRING,
       description: "The category of merchant, e.g., Dining, Entertainment, Food, Grocery, Travel, Shopping."
@@ -118,15 +122,29 @@ export async function analyzePromptWithAI(prompt: string): Promise<Partial<Campa
   }
 }
 
-export async function sendDataToWebhook(payload: Record<string, any>) {
+export async function sendDataToWebhook(payload: CampaignParameters) {
   const webhookUrl = 'https://subhadevp.app.n8n.cloud/webhook-test/09e1de49-2634-424d-a0d3-52deaa861da6';
+  
+  // Create a structured payload with user-friendly keys, similar to the approval webhook
+  const webhookPayload = {
+      "Segment Name": payload.segmentName,
+      "Campaign Type": payload.campaignType,
+      "Merchant Category": payload.merchantCategory,
+      "Age": payload.age,
+      "Gender": payload.gender,
+      "User Type": payload.userType,
+      "Income": payload.incomeBracket,
+      "Days Onboarded": payload.daysOnboarded,
+      "Festive season": payload.specialFestiveSeason,
+  };
+
   try {
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(webhookPayload),
     });
 
     const responseText = await response.text();
@@ -178,6 +196,7 @@ export async function sendApprovalToWebhook(campaign: Campaign, campaignParams: 
       "Body": campaign.Body,
       // Campaign Input Data
       "Segment Name": campaignParams.segmentName,
+      "Campaign Type": campaignParams.campaignType,
       "Merchant Category": campaignParams.merchantCategory,
       "Age": campaignParams.age,
       "Gender": campaignParams.gender,
@@ -231,7 +250,14 @@ export async function generateApprovalMessage(campaign: Campaign): Promise<strin
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: `A marketing campaign has been successfully approved and created. Generate a short, cheerful, and professional congratulatory success message for the product manager. Mention the campaign header which is "${campaign.Header}".`,
+      contents: `A marketing campaign has been successfully approved and created. Your task is to generate a short, cheerful, and highly conversational success message for the user, who is a campaign manager. Make them feel great about their work!
+
+Guidelines:
+- Congratulate them enthusiastically.
+- Compliment them on their skill (e.g., "you're an awesome campaign manager").
+- Mention the campaign header, which is "${campaign.Header}".
+- Keep it concise and professional, but with a friendly and celebratory tone.
+- **Crucially, DO NOT use any placeholders like [Product Manager's Name] or [Your Name]. Address the user directly without using a name.**`,
       config: {},
     });
 
@@ -243,6 +269,6 @@ export async function generateApprovalMessage(campaign: Campaign): Promise<strin
   } catch (error) {
     console.error("Error generating approval message with AI:", error);
     // Provide a good fallback message
-    return `Congratulations! The campaign "${campaign.Header}" has been successfully approved and created.`;
+    return `Congratulations! The campaign "${campaign.Header}" has been successfully approved and created. You're an awesome campaign manager!`;
   }
 }

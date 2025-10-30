@@ -9,11 +9,35 @@ import type { CampaignParameters, Message, Campaign } from './types';
 import { sendDataToWebhook, analyzePromptWithAI, sendApprovalToWebhook, generateApprovalMessage, validateUserInput } from './services/geminiService';
 import { Sender, MessageType } from './types';
 
+const AGE_RANGE_REGEX = /"?\d+"?\s*(to|-)\s*"?\d+"?/i;
+const HAS_NUMBER_REGEX = /\d+/;
+
+const isValidAge = (age: string): boolean => {
+  if (!age || age.trim() === '') {
+    return true; // Empty is valid
+  }
+  const trimmedAge = age.trim();
+
+  // If it contains a clear range, it's valid.
+  if (AGE_RANGE_REGEX.test(trimmedAge)) {
+    return true;
+  }
+  
+  // If it contains numbers but NOT a range, it's invalid.
+  if (HAS_NUMBER_REGEX.test(trimmedAge)) {
+    return false;
+  }
+  
+  // If it has no numbers, we treat it as not specifying an age and don't flag an error.
+  return true;
+};
+
 
 function App() {
   const { messages, addMessage, isLoading, setIsLoading, updateMessage, createCheckpoint, restoreCheckpoint } = useChat();
   const [campaignParams, setCampaignParams] = useState<CampaignParameters>({
     segmentName: '',
+    campaignType: '',
     merchantCategory: '',
     age: '',
     gender: '',
@@ -36,7 +60,7 @@ function App() {
 
     try {
       if (!campaignParams.segmentName) {
-        // CONTEXT: Expecting a segment name
+        // STATE 1: WAITING FOR SEGMENT NAME
         const validation = await validateUserInput(text, 'segment_name');
 
         if (!validation.isValid) {
@@ -50,18 +74,44 @@ function App() {
           return;
         }
         
-        // It's a valid segment name, proceed
         setCampaignParams(prev => ({ ...prev, segmentName: text }));
         const aiResponse: Message = {
           id: `${Date.now()}-segment-set`,
           sender: Sender.AI,
           type: MessageType.Text,
-          content: `Great! The segment is named "${text}". Now, please describe the customers in this segment. For example, you can mention their age, income, interests, or spending habits.`,
+          content: `Great! The segment is named "${text}". Now, please specify if this is an 'activation' or a 'retention' campaign.`,
         };
         addMessage(aiResponse);
 
+      } else if (!campaignParams.campaignType) {
+        // STATE 2: WAITING FOR CAMPAIGN TYPE
+        const lowercasedText = text.toLowerCase().trim();
+        const extractedType = lowercasedText.includes('activation') 
+            ? 'activation' 
+            : lowercasedText.includes('retention') 
+            ? 'retention' 
+            : '';
+
+        if (extractedType) {
+            setCampaignParams(prev => ({ ...prev, campaignType: extractedType }));
+            const aiResponse: Message = {
+                id: `${Date.now()}-type-set`,
+                sender: Sender.AI,
+                type: MessageType.Text,
+                content: `Perfect, this is an '${extractedType}' campaign. Now, please describe your marketing campaign, including details about your target audience, offers, or occasions. For example, 'a Diwali offer for shoppers' or 'cashback for movie lovers'.`
+            };
+            addMessage(aiResponse);
+        } else {
+            const aiResponse: Message = {
+                id: `${Date.now()}-invalid-type`,
+                sender: Sender.AI,
+                type: MessageType.Text,
+                content: "My apologies, that doesn't seem to be a valid campaign type. Please specify if this is an 'activation' or 'retention' campaign."
+            };
+            addMessage(aiResponse);
+        }
       } else {
-        // CONTEXT: Expecting campaign details
+        // STATE 3: WAITING FOR CAMPAIGN DETAILS
         const validation = await validateUserInput(text, 'campaign_details');
 
         if (!validation.isValid) {
@@ -75,23 +125,32 @@ function App() {
           return;
         }
 
-        // It's valid campaign details, proceed with the full flow
         createCheckpoint();
         
         const extractedPartialParams = await analyzePromptWithAI(text);
         
+        // Filter out empty/null values from AI extraction to prevent overwriting existing valid params
+        const updatedParams = Object.fromEntries(
+            Object.entries(extractedPartialParams).filter(([, v]) => v != null && v !== '')
+        );
+        const currentParams = { ...campaignParams, ...updatedParams };
+        setCampaignParams(currentParams);
+
+
         const errors: string[] = [];
-        const ageRegex = /^(|(\d+\s+to\s+\d+))$/;
         
-        // Validate Age
-        if (extractedPartialParams.age !== undefined && !ageRegex.test(String(extractedPartialParams.age).trim())) {
-          errors.push('Age format is invalid. Please use a range (e.g., "34 to 45").');
+        if (currentParams.age && !isValidAge(String(currentParams.age))) {
+          errors.push('Age format is invalid. Please use a range (e.g., "34 to 45"). Single numbers are not permitted.');
         }
         
-        // Validate Income
         const validIncomes: Array<CampaignParameters['incomeBracket'] | undefined> = ['High', 'Low', 'Medium', ''];
-        if (extractedPartialParams.incomeBracket !== undefined && !validIncomes.includes(extractedPartialParams.incomeBracket)) {
+        if (currentParams.incomeBracket && !validIncomes.includes(currentParams.incomeBracket)) {
           errors.push(`Income bracket is invalid. Please use "High", "Low", or "Medium".`);
+        }
+
+        const validCampaignTypes: Array<CampaignParameters['campaignType']> = ['activation', 'retention'];
+        if (currentParams.campaignType && !validCampaignTypes.includes(currentParams.campaignType)) {
+          errors.push(`Campaign Type is invalid. It must be 'activation' or 'retention'.`);
         }
 
         if (errors.length > 0) {
@@ -104,14 +163,8 @@ function App() {
             addMessage(aiResponse);
             return;
         }
-
-        const fullExtractedParams: CampaignParameters = {
-          ...campaignParams,
-          ...extractedPartialParams,
-        };
-        setCampaignParams(fullExtractedParams);
-
-        const webhookResponse = await sendDataToWebhook(fullExtractedParams);
+        
+        const webhookResponse = await sendDataToWebhook(currentParams);
         const aiResponse: Message = {
           id: `${Date.now()}-webhook-response`,
           sender: Sender.AI,
@@ -146,14 +199,24 @@ function App() {
       addMessage(errorMessage);
       return;
     }
+    
+    if (!campaignParams.campaignType) {
+      const errorMessage: Message = {
+        id: `${Date.now()}-validation-error-campaign-type`,
+        sender: Sender.System,
+        type: MessageType.Text,
+        content: `Error: Campaign Type is a required field.`,
+      };
+      addMessage(errorMessage);
+      return;
+    }
 
-    const ageRegex = /^(|(\d+\s+to\s+\d+))$/;
-    if (campaignParams.age && !ageRegex.test(campaignParams.age.trim())) {
+    if (campaignParams.age && !isValidAge(campaignParams.age)) {
       const errorMessage: Message = {
         id: `${Date.now()}-validation-error-age`,
         sender: Sender.System,
         type: MessageType.Text,
-        content: `Error: Age format is invalid. Please use a range (e.g., "34 to 45") or leave it blank.`,
+        content: `Error: Age format is invalid. Please use a range (e.g., "34 to 45") or leave it blank. Single numbers are not permitted.`,
       };
       addMessage(errorMessage);
       return;
