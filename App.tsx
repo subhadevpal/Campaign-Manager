@@ -78,39 +78,38 @@ function App() {
         // It's valid campaign details, proceed with the full flow
         createCheckpoint();
         
-        const analyzingMessage: Message = {
-          id: `${Date.now()}-analyzing`,
-          sender: Sender.System,
-          type: MessageType.FunctionCall,
-          content: '',
-          functionCall: { name: 'analyzePrompt', args: { prompt: text } },
-        };
-        addMessage(analyzingMessage);
-
         const extractedPartialParams = await analyzePromptWithAI(text);
+        
+        const errors: string[] = [];
+        const ageRegex = /^(|(\d+\s+to\s+\d+))$/;
+        
+        // Validate Age
+        if (extractedPartialParams.age !== undefined && !ageRegex.test(String(extractedPartialParams.age).trim())) {
+          errors.push('Age format is invalid. Please use a range (e.g., "34 to 45").');
+        }
+        
+        // Validate Income
+        const validIncomes: Array<CampaignParameters['incomeBracket'] | undefined> = ['High', 'Low', 'Medium', ''];
+        if (extractedPartialParams.incomeBracket !== undefined && !validIncomes.includes(extractedPartialParams.incomeBracket)) {
+          errors.push(`Income bracket is invalid. Please use "High", "Low", or "Medium".`);
+        }
+
+        if (errors.length > 0) {
+            const aiResponse: Message = {
+              id: `${Date.now()}-invalid-params`,
+              sender: Sender.AI,
+              type: MessageType.Text,
+              content: `I noticed some issues with the details you provided. Could you please correct them?\n\n- ${errors.join('\n- ')}`,
+            };
+            addMessage(aiResponse);
+            return;
+        }
+
         const fullExtractedParams: CampaignParameters = {
           ...campaignParams,
           ...extractedPartialParams,
         };
         setCampaignParams(fullExtractedParams);
-
-        const analysisResult: Message = {
-          id: `${Date.now()}-analysis-result`,
-          sender: Sender.System,
-          type: MessageType.FunctionResult,
-          content: '',
-          functionResult: { name: 'analyzePrompt', result: fullExtractedParams },
-        };
-        addMessage(analysisResult);
-
-        const sendingMessage: Message = {
-          id: `${Date.now()}-sending-webhook`,
-          sender: Sender.System,
-          type: MessageType.FunctionCall,
-          content: '',
-          functionCall: { name: 'sendToWorkflow', args: fullExtractedParams },
-        };
-        addMessage(sendingMessage);
 
         const webhookResponse = await sendDataToWebhook(fullExtractedParams);
         const aiResponse: Message = {
@@ -148,16 +147,20 @@ function App() {
       return;
     }
 
+    const ageRegex = /^(|(\d+\s+to\s+\d+))$/;
+    if (campaignParams.age && !ageRegex.test(campaignParams.age.trim())) {
+      const errorMessage: Message = {
+        id: `${Date.now()}-validation-error-age`,
+        sender: Sender.System,
+        type: MessageType.Text,
+        content: `Error: Age format is invalid. Please use a range (e.g., "34 to 45") or leave it blank.`,
+      };
+      addMessage(errorMessage);
+      return;
+    }
+
     createCheckpoint();
     setIsLoading(true);
-    const sendingMessage: Message = {
-      id: `${Date.now()}-sending-webhook`,
-      sender: Sender.System,
-      type: MessageType.FunctionCall,
-      content: '',
-      functionCall: { name: 'sendToWorkflow', args: campaignParams },
-    };
-    addMessage(sendingMessage);
 
     try {
       const webhookResponse = await sendDataToWebhook(campaignParams);

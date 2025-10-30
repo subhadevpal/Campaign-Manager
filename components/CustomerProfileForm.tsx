@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { CampaignParameters } from '../types';
 import { XIcon, SparklesIcon } from './Icons';
@@ -60,7 +61,7 @@ export const CustomerProfileForm: React.FC<CustomerProfileFormProps> = ({ profil
           </div>
           <div>
             <label htmlFor="age" className={labelClasses}>Age</label>
-            <input type="number" name="age" id="age" value={profile.age} onChange={handleChange} className={inputClasses} placeholder="e.g., 35" />
+            <input type="text" name="age" id="age" value={profile.age} onChange={handleChange} className={inputClasses} placeholder="e.g., 34 to 45" />
           </div>
           <div>
             <label htmlFor="gender" className={labelClasses}>Gender</label>
@@ -81,8 +82,13 @@ export const CustomerProfileForm: React.FC<CustomerProfileFormProps> = ({ profil
             </select>
           </div>
           <div>
-            <label htmlFor="incomeBracket" className={labelClasses}>Income Bracket (LPA)</label>
-            <input type="text" name="incomeBracket" id="incomeBracket" value={profile.incomeBracket} onChange={handleChange} className={inputClasses} placeholder="e.g., 10-15 LPA" />
+            <label htmlFor="incomeBracket" className={labelClasses}>Income Bracket</label>
+            <select name="incomeBracket" id="incomeBracket" value={profile.incomeBracket} onChange={handleChange} className={inputClasses}>
+              <option value="">Select Bracket</option>
+              <option value="High">High</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+            </select>
           </div>
           <div>
             <label htmlFor="daysOnboarded" className={labelClasses}>Days Onboarded</label>

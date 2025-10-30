@@ -1,3 +1,4 @@
+
 export enum Sender {
   User = 'user',
   AI = 'ai',
@@ -36,7 +37,7 @@ export interface CampaignParameters {
   age: string;
   gender: string;
   userType: 'Power' | 'Regular' | 'At Risk' | '';
-  incomeBracket: string;
+  incomeBracket: 'High' | 'Low' | 'Medium' | '';
   daysOnboarded: string;
   specialFestiveSeason: string;
 }

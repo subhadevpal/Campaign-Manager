@@ -13,7 +13,7 @@ const campaignSchema = {
     },
     age: {
       type: Type.STRING,
-      description: "The age of the target customer."
+      description: "The age of the target customer. If the user provides an age or age range (e.g., '44', '44 years', '34 to 45'), extract it exactly as provided. The application's validation logic will handle checking if the format is a range."
     },
     gender: {
       type: Type.STRING,
@@ -25,7 +25,7 @@ const campaignSchema = {
     },
     incomeBracket: {
       type: Type.STRING,
-      description: "The annual income bracket of the user, e.g., 10-15 LPA."
+      description: "The income bracket of the user. If the user provides one of the exact values 'High', 'Low', or 'Medium', extract it. If the user provides any other value for income (like a number or different word), extract that value verbatim so it can be validated."
     },
     daysOnboarded: {
       type: Type.STRING,
@@ -100,7 +100,7 @@ export async function analyzePromptWithAI(prompt: string): Promise<Partial<Campa
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: `Analyze the user's request and extract the campaign parameters based on the provided schema. Only fill in the values that are explicitly mentioned in the request. The user's request is: "${prompt}"`,
+      contents: `Analyze the user's request and extract the campaign parameters based on the provided schema. Only fill in the values that are explicitly mentioned in the request. For the income bracket, be aware that users might provide specific monetary values (e.g., '44 lacs per annum', '50k per month'). If you see such a value, extract it verbatim as the incomeBracket, even if general terms like 'low income' are also present. For age, extract any number or range the user mentions (e.g., '44', '44 years', '30-40') exactly as they wrote it, so the system can validate the format. The user's request is: "${prompt}"`,
       config: {
         responseMimeType: "application/json",
         responseSchema: campaignSchema,
