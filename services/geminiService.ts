@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { CampaignParameters, Campaign } from "../types";
 
@@ -125,15 +124,15 @@ export async function analyzePromptWithAI(prompt: string): Promise<Partial<Campa
 export async function sendDataToWebhook(payload: CampaignParameters) {
   const webhookUrl = 'https://subhadevp.app.n8n.cloud/webhook-test/09e1de49-2634-424d-a0d3-52deaa861da6';
   
-  // Create a structured payload with user-friendly keys, similar to the approval webhook
+  // Create a structured payload with all collected customer data
   const webhookPayload = {
       "Segment Name": payload.segmentName,
       "Campaign Type": payload.campaignType,
-      "Merchant Category": payload.merchantCategory,
+      "Favourite Merchant Category": payload.merchantCategory,
       "Age": payload.age,
       "Gender": payload.gender,
-      "User Type": payload.userType,
-      "Income": payload.incomeBracket,
+      "Type of User": payload.userType,
+      "Income bracket": payload.incomeBracket,
       "Days Onboarded": payload.daysOnboarded,
       "Festive season": payload.specialFestiveSeason,
   };

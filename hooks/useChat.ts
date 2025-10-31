@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import type { Message } from '../types';
 import { Sender, MessageType } from '../types';
@@ -17,6 +18,10 @@ export const useChat = () => {
 
   const addMessage = useCallback((message: Message) => {
     setMessages(prev => [...prev, message]);
+  }, []);
+
+  const removeMessage = useCallback((idToRemove: string) => {
+    setMessages(prev => prev.filter(message => message.id !== idToRemove));
   }, []);
 
   const createCheckpoint = useCallback(() => {
@@ -39,5 +44,9 @@ export const useChat = () => {
     );
   }, []);
 
-  return { messages, addMessage, isLoading, setIsLoading, updateMessage, createCheckpoint, restoreCheckpoint };
+  const resetMessages = useCallback(() => {
+    setMessages(initialMessages);
+  }, []);
+
+  return { messages, addMessage, isLoading, setIsLoading, updateMessage, createCheckpoint, restoreCheckpoint, removeMessage, resetMessages };
 };

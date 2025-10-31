@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { ChatInput } from './components/ChatInput';
@@ -32,23 +31,50 @@ const isValidAge = (age: string): boolean => {
   return true;
 };
 
+const initialCampaignParams: CampaignParameters = {
+  segmentName: '',
+  campaignType: '',
+  merchantCategory: '',
+  age: '',
+  gender: '',
+  userType: '',
+  incomeBracket: '',
+  daysOnboarded: '',
+  specialFestiveSeason: '',
+};
 
 function App() {
-  const { messages, addMessage, isLoading, setIsLoading, updateMessage, createCheckpoint, restoreCheckpoint } = useChat();
-  const [campaignParams, setCampaignParams] = useState<CampaignParameters>({
-    segmentName: '',
-    campaignType: '',
-    merchantCategory: '',
-    age: '',
-    gender: '',
-    userType: '',
-    incomeBracket: '',
-    daysOnboarded: '',
-    specialFestiveSeason: '',
-  });
+  const { messages, addMessage, isLoading, setIsLoading, updateMessage, createCheckpoint, restoreCheckpoint, removeMessage, resetMessages } = useChat();
+  const [campaignParams, setCampaignParams] = useState<CampaignParameters>(initialCampaignParams);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [hasConversationEnded, setHasConversationEnded] = useState(false);
+
+  const resetConversation = () => {
+    setCampaignParams(initialCampaignParams);
+    resetMessages();
+  };
   
   const handleSendMessage = async (text: string) => {
+    // If the last turn ended in an error, any new user message will reset the conversation.
+    if (hasConversationEnded) {
+        const userMessage: Message = {
+            id: Date.now().toString(),
+            sender: Sender.User,
+            type: MessageType.Text,
+            content: text,
+        };
+        addMessage(userMessage);
+
+        setIsLoading(true);
+        // Use a timeout to make the reset feel more natural
+        setTimeout(() => {
+            resetConversation();
+            setHasConversationEnded(false);
+            setIsLoading(false);
+        }, 500);
+        return; // Stop further processing for this turn
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       sender: Sender.User,
@@ -56,6 +82,7 @@ function App() {
       content: text,
     };
     addMessage(userMessage);
+    
     setIsLoading(true);
 
     try {
@@ -183,6 +210,7 @@ function App() {
         content: `An error occurred: ${(error as Error).message}`,
       };
       addMessage(errorMessage);
+      setHasConversationEnded(true);
     } finally {
       setIsLoading(false);
     }
@@ -222,8 +250,18 @@ function App() {
       return;
     }
 
-    createCheckpoint();
     setIsLoading(true);
+    setIsProfileOpen(false); // Close sidebar immediately to shift focus to chat
+    createCheckpoint();
+    
+    // Add a system message to bridge the action and the result
+    const systemMessage: Message = {
+      id: `${Date.now()}-profile-submit`,
+      sender: Sender.System,
+      type: MessageType.Text,
+      content: 'Generating campaign with the provided customer profile...',
+    };
+    addMessage(systemMessage);
 
     try {
       const webhookResponse = await sendDataToWebhook(campaignParams);
@@ -236,7 +274,6 @@ function App() {
                  : String(webhookResponse),
       };
       addMessage(aiResponse);
-      setIsProfileOpen(false); // Close sidebar on mobile after submission
     } catch (error) {
        const errorMessage: Message = {
         id: `${Date.now()}-webhook-error`,
@@ -245,6 +282,7 @@ function App() {
         content: `Error: ${(error as Error).message}`,
       };
       addMessage(errorMessage);
+      setHasConversationEnded(true);
     } finally {
       setIsLoading(false);
     }
@@ -261,23 +299,36 @@ function App() {
     addMessage(approvingMessage);
 
     try {
-      // Wait for the webhook to confirm the approval, sending both output and input data
-      await sendApprovalToWebhook(campaign, campaignParams);
+      const webhookResponse = await sendApprovalToWebhook(campaign, campaignParams);
+      const responseString = typeof webhookResponse === 'object' ? JSON.stringify(webhookResponse) : String(webhookResponse);
 
-      // Generate the AI success message
-      const successMessageContent = await generateApprovalMessage(campaign);
+      // Normalize whitespace to handle variations like double spaces and check for failure signature.
+      const normalizedResponseString = responseString.replace(/\s\s+/g, ' ').trim();
+      const failureSignature = "Your campaign has failed with Error Message";
 
-      // Display the AI-generated success message
-      const successMessage: Message = {
-        id: `${Date.now()}-approval-success`,
-        sender: Sender.AI,
-        type: MessageType.Text,
-        content: successMessageContent,
-      };
-      addMessage(successMessage);
-
-      // Mark the original campaign message as approved
-      updateMessage(messageId, { isApproved: true });
+      if (normalizedResponseString.includes(failureSignature)) {
+        // The webhook reported a delivery failure.
+        const failureMessage: Message = {
+          id: `${Date.now()}-approval-failure`,
+          sender: Sender.AI,
+          type: MessageType.Text,
+          // Show the original, un-normalized error message from the webhook
+          content: responseString,
+        };
+        addMessage(failureMessage);
+        setHasConversationEnded(true);
+      } else {
+        // The webhook reported success, proceed with the congratulatory message.
+        const successMessageContent = await generateApprovalMessage(campaign);
+        const successMessage: Message = {
+          id: `${Date.now()}-approval-success`,
+          sender: Sender.AI,
+          type: MessageType.Text,
+          content: successMessageContent,
+        };
+        addMessage(successMessage);
+        updateMessage(messageId, { isApproved: true });
+      }
     } catch (error) {
       const errorMessage: Message = {
         id: `${Date.now()}-approval-error`,
@@ -286,6 +337,44 @@ function App() {
         content: `Approval failed: ${(error as Error).message}`,
       };
       addMessage(errorMessage);
+      setHasConversationEnded(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleRegenerateCampaign = async (messageId: string) => {
+    setIsLoading(true);
+    removeMessage(messageId);
+
+    const regeneratingMessage: Message = {
+      id: `${Date.now()}-regenerating`,
+      sender: Sender.System,
+      type: MessageType.Text,
+      content: `Regenerating campaign with the same criteria...`,
+    };
+    addMessage(regeneratingMessage);
+
+    try {
+      const webhookResponse = await sendDataToWebhook(campaignParams);
+      const aiResponse: Message = {
+        id: `${Date.now()}-webhook-response-regenerated`,
+        sender: Sender.AI,
+        type: MessageType.Text,
+        content: typeof webhookResponse === 'object' 
+                 ? JSON.stringify(webhookResponse, null, 2) 
+                 : String(webhookResponse),
+      };
+      addMessage(aiResponse);
+    } catch (error) {
+       const errorMessage: Message = {
+        id: `${Date.now()}-webhook-error-regenerated`,
+        sender: Sender.System,
+        type: MessageType.Text,
+        content: `Error during regeneration: ${(error as Error).message}`,
+      };
+      addMessage(errorMessage);
+      setHasConversationEnded(true);
     } finally {
       setIsLoading(false);
     }
@@ -320,6 +409,7 @@ function App() {
                   messages={messages} 
                   isLoading={isLoading}
                   onApproveCampaign={handleApproveCampaign}
+                  onRegenerateCampaign={handleRegenerateCampaign}
                 />
               </main>
               <footer className="bg-purple-deep border-t border-purple-secondary/30 p-4 md:p-6">

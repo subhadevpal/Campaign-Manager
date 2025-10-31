@@ -1,8 +1,10 @@
+
 import React, { useEffect, useRef } from 'react';
 import type { Message, Campaign } from '../types';
 import { MessageBubble } from './MessageBubble';
 import { FunctionCallBubble } from './FunctionCallBubble';
 import { FunctionResultBubble } from './FunctionResultBubble';
+import { SystemMessageBubble } from './SystemMessageBubble';
 import { MessageType, Sender } from '../types';
 import { AIIcon } from './Icons';
 
@@ -10,9 +12,10 @@ interface ChatWindowProps {
   messages: Message[];
   isLoading: boolean;
   onApproveCampaign: (campaign: Campaign, messageId: string) => void;
+  onRegenerateCampaign: (messageId: string) => void;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onApproveCampaign }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onApproveCampaign, onRegenerateCampaign }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -30,12 +33,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onA
           case MessageType.FunctionResult:
             return <FunctionResultBubble key={msg.id} functionResult={msg.functionResult!} />;
           default:
+            if (msg.sender === Sender.System) {
+              return <SystemMessageBubble key={msg.id} content={msg.content} />;
+            }
             return (
               <MessageBubble 
                 key={msg.id} 
                 message={msg}
                 isLoading={isLoading}
                 onApproveCampaign={onApproveCampaign}
+                onRegenerateCampaign={onRegenerateCampaign}
               />
             );
         }

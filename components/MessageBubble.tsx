@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Message, Campaign } from '../types';
 import { Sender } from '../types';
@@ -8,9 +9,10 @@ interface MessageBubbleProps {
   message: Message;
   isLoading: boolean;
   onApproveCampaign: (campaign: Campaign, messageId: string) => void;
+  onRegenerateCampaign: (messageId: string) => void;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLoading, onApproveCampaign }) => {
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLoading, onApproveCampaign, onRegenerateCampaign }) => {
   const isUser = message.sender === Sender.User;
   const isAI = message.sender === Sender.AI;
 
@@ -49,6 +51,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLoading
           <CampaignCard 
             campaign={campaignData}
             onApprove={() => onApproveCampaign(campaignData!, message.id)}
+            onRegenerate={() => onRegenerateCampaign(message.id)}
             isApproved={message.isApproved}
             isLoading={isLoading}
           />
