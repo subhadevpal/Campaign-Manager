@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { ChatInput } from './components/ChatInput';
@@ -5,7 +6,7 @@ import { ChatWindow } from './components/ChatWindow';
 import { CustomerProfileForm } from './components/CustomerProfileForm';
 import { useChat } from './hooks/useChat';
 import type { CampaignParameters, Message, Campaign } from './types';
-import { sendDataToWebhook, analyzePromptWithAI, sendApprovalToWebhook, generateApprovalMessage, validateUserInput } from './services/geminiService';
+import { sendDataToWebhook, analyzePromptWithAI, sendApprovalToWebhook, generateApprovalMessage, validateUserInput, generateCampaignImage, recommendCampaignIdea } from './services/geminiService';
 import { Sender, MessageType } from './types';
 
 const AGE_RANGE_REGEX = /"?\d+"?\s*(to|-)\s*"?\d+"?/i;
@@ -33,7 +34,6 @@ const isValidAge = (age: string): boolean => {
 
 const initialCampaignParams: CampaignParameters = {
   segmentName: '',
-  campaignType: '',
   merchantCategory: '',
   age: '',
   gender: '',
@@ -48,13 +48,44 @@ function App() {
   const [campaignParams, setCampaignParams] = useState<CampaignParameters>(initialCampaignParams);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [hasConversationEnded, setHasConversationEnded] = useState(false);
+  const [lastCampaignData, setLastCampaignData] = useState<Campaign | null>(null);
+  const [lastCampaignMessageId, setLastCampaignMessageId] = useState<string | null>(null);
+  const [suggestedDescription, setSuggestedDescription] = useState<string | null>(null);
+  const [isWaitingForRecommendationInput, setIsWaitingForRecommendationInput] = useState(false);
 
   const resetConversation = () => {
     setCampaignParams(initialCampaignParams);
+    setLastCampaignData(null);
+    setLastCampaignMessageId(null);
+    setSuggestedDescription(null);
+    setIsWaitingForRecommendationInput(false);
     resetMessages();
   };
   
   const handleSendMessage = async (text: string) => {
+    // Check if the user wants to restart the conversation (e.g. "Hi", "Hello")
+    // This allows the user to interrupt and start from step 1 at any time.
+    const isRestartCommand = /^(hi|hello|hey|start|restart|reset)(\s+there)?!?\.?$/i.test(text.trim());
+
+    if (isRestartCommand) {
+        const userMessage: Message = {
+            id: Date.now().toString(),
+            sender: Sender.User,
+            type: MessageType.Text,
+            content: text,
+        };
+        addMessage(userMessage);
+
+        setIsLoading(true);
+        // Use a timeout to make the reset feel more natural
+        setTimeout(() => {
+            resetConversation();
+            setHasConversationEnded(false);
+            setIsLoading(false);
+        }, 600);
+        return; // Stop further processing
+    }
+
     // If the last turn ended in an error, any new user message will reset the conversation.
     if (hasConversationEnded) {
         const userMessage: Message = {
@@ -102,59 +133,192 @@ function App() {
         }
         
         setCampaignParams(prev => ({ ...prev, segmentName: text }));
+        
+        // Skip asking for campaign type and go directly to options
         const aiResponse: Message = {
           id: `${Date.now()}-segment-set`,
           sender: Sender.AI,
           type: MessageType.Text,
-          content: `Great! The segment is named "${text}". Now, please specify if this is an 'activation' or a 'retention' campaign.`,
+          content: `Great! The segment is named "${text}".\n\nPlease choose how you'd like to proceed:`,
+          options: [
+            { label: "Describe Campaign", value: "I will describe the campaign myself." },
+            { label: "Recommend Idea", value: "Help me with a campaign recommendation." }
+          ]
         };
         addMessage(aiResponse);
 
-      } else if (!campaignParams.campaignType) {
-        // STATE 2: WAITING FOR CAMPAIGN TYPE
-        const lowercasedText = text.toLowerCase().trim();
-        const extractedType = lowercasedText.includes('activation') 
-            ? 'activation' 
-            : lowercasedText.includes('retention') 
-            ? 'retention' 
-            : '';
-
-        if (extractedType) {
-            setCampaignParams(prev => ({ ...prev, campaignType: extractedType }));
-            const aiResponse: Message = {
-                id: `${Date.now()}-type-set`,
-                sender: Sender.AI,
-                type: MessageType.Text,
-                content: `Perfect, this is an '${extractedType}' campaign. Now, please describe your marketing campaign, including details about your target audience, offers, or occasions. For example, 'a Diwali offer for shoppers' or 'cashback for movie lovers'.`
-            };
-            addMessage(aiResponse);
-        } else {
-            const aiResponse: Message = {
-                id: `${Date.now()}-invalid-type`,
-                sender: Sender.AI,
-                type: MessageType.Text,
-                content: "My apologies, that doesn't seem to be a valid campaign type. Please specify if this is an 'activation' or 'retention' campaign."
-            };
-            addMessage(aiResponse);
-        }
       } else {
-        // STATE 3: WAITING FOR CAMPAIGN DETAILS
-        const validation = await validateUserInput(text, 'campaign_details');
+        // STATE 2: WAITING FOR CAMPAIGN DETAILS, IMAGE GENERATION, OR IDEA RECOMMENDATION
+        
+        // Handle Option Selection: "Describe Campaign"
+        if (text === "I will describe the campaign myself.") {
+           addMessage({
+             id: `${Date.now()}-describe-ack`,
+             sender: Sender.AI,
+             type: MessageType.Text,
+             content: "Please describe the campaign e.g. : Create Diwali Marketing campaign for high income males"
+           });
+           setIsLoading(false);
+           return;
+        }
 
-        if (!validation.isValid) {
-          const aiResponse: Message = {
-            id: `${Date.now()}-invalid-details`,
-            sender: Sender.AI,
-            type: MessageType.Text,
-            content: validation.feedback || "My apologies, that doesn't look like a campaign description. Could you tell me about the campaign you have in mind? For instance, 'A Diwali offer for new customers'.",
-          };
-          addMessage(aiResponse);
-          return;
+        // Handle Option Selection: "Recommend Idea" - Start Flow
+        if (text === "Help me with a campaign recommendation.") {
+            setIsWaitingForRecommendationInput(true);
+            addMessage({
+                id: `${Date.now()}-recommend-start`,
+                sender: Sender.AI,
+                type: MessageType.Text,
+                content: "Sure! Please specify the Merchant Category and Festive Season (e.g., 'Dining, Diwali') so I can suggest something relevant."
+            });
+            setIsLoading(false);
+            return;
+        }
+
+        // Handle Input for Recommendation
+        if (isWaitingForRecommendationInput) {
+             try {
+                 const idea = await recommendCampaignIdea(text);
+                 setSuggestedDescription(idea);
+                 addMessage({
+                     id: `${Date.now()}-recommendation`,
+                     sender: Sender.AI,
+                     type: MessageType.Text,
+                     content: `Here is a campaign idea based on your input:\n\n"${idea}"\n\nWould you like to proceed with generating the campaign for this idea?`
+                 });
+                 setIsWaitingForRecommendationInput(false);
+                 setIsLoading(false);
+                 return;
+             } catch (error) {
+                 console.error("Failed to recommend idea:", error);
+                 addMessage({
+                     id: `${Date.now()}-recommend-error`,
+                     sender: Sender.AI,
+                     type: MessageType.Text,
+                     content: "I had trouble generating a recommendation. Could you please describe your campaign directly instead?"
+                 });
+                 setIsWaitingForRecommendationInput(false);
+                 setIsLoading(false);
+                 return;
+             }
+        }
+
+        let textToProcess = text;
+        let skipValidation = false;
+
+        // Check if we are in the middle of a recommendation confirmation flow
+        if (suggestedDescription) {
+            // Check if the user's input looks like confirmation
+            const isAffirmation = /^(yes|yeah|sure|ok|proceed|go ahead|correct|please do)/i.test(text.trim());
+            
+            if (isAffirmation) {
+                textToProcess = suggestedDescription;
+                skipValidation = true;
+                addMessage({
+                    id: `${Date.now()}-using-suggestion`,
+                    sender: Sender.System,
+                    type: MessageType.Text,
+                    content: `Using idea: "${textToProcess}"`
+                });
+            } else {
+                // User rejected or typed something else, so we use their input as the description or command
+                // Fall through to normal processing
+            }
+            setSuggestedDescription(null);
+        }
+        
+        if (!skipValidation) {
+            // Check for Image Generation
+            const isImageRequest = /generate.*(image|visual|creative)|show.*(image|visual|creative)|create.*(image|picture)/i.test(text);
+            if (isImageRequest) {
+                if (lastCampaignData && lastCampaignMessageId) {
+                    const loadingMsgId = `${Date.now()}-generating-image`;
+                    addMessage({
+                        id: loadingMsgId,
+                        sender: Sender.System,
+                        type: MessageType.Text,
+                        content: "Designing a creative image for your campaign..."
+                    });
+
+                    try {
+                        const imageUrl = await generateCampaignImage(lastCampaignData, campaignParams);
+                        const updatedCampaign = { ...lastCampaignData, imageUrl };
+                        
+                        // Update the last campaign state
+                        setLastCampaignData(updatedCampaign);
+                        
+                        // Update the specific message in the chat history
+                        updateMessage(lastCampaignMessageId, {
+                            content: JSON.stringify({ output: [updatedCampaign] })
+                        });
+                        
+                        removeMessage(loadingMsgId);
+                        setIsLoading(false);
+                        return; // Stop here after handling image generation
+                    } catch (error) {
+                        console.error(error);
+                        removeMessage(loadingMsgId);
+                        addMessage({
+                            id: `${Date.now()}-image-error`,
+                            sender: Sender.System,
+                            type: MessageType.Text,
+                            content: "I couldn't generate an image at this time. Please try again."
+                        });
+                        setIsLoading(false);
+                        return;
+                    }
+                } else {
+                    addMessage({
+                        id: `${Date.now()}-image-no-campaign`,
+                        sender: Sender.AI,
+                        type: MessageType.Text,
+                        content: "I'd love to generate an image, but please create a campaign first! Describe your campaign or ask for a recommendation to get started."
+                    });
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
+            // Check for inline Recommendation Request (fallback if user ignores buttons)
+            const isRecommendationRequest = /(recommend|suggest|give|idea|what should|can you).*idea/i.test(text) || /(recommend|suggest).*campaign/i.test(text);
+            
+            if (isRecommendationRequest) {
+                 try {
+                     const idea = await recommendCampaignIdea(text);
+                     setSuggestedDescription(idea);
+                     addMessage({
+                         id: `${Date.now()}-recommendation`,
+                         sender: Sender.AI,
+                         type: MessageType.Text,
+                         content: `Here is a campaign idea based on your request:\n\n"${idea}"\n\nWould you like to proceed with generating the campaign for this idea?`
+                     });
+                     setIsLoading(false);
+                     return;
+                 } catch (error) {
+                     console.error("Failed to recommend idea:", error);
+                     // Fall through to normal processing if recommendation fails
+                 }
+            }
+        }
+
+        if (!skipValidation) {
+            const validation = await validateUserInput(textToProcess, 'campaign_details');
+
+            if (!validation.isValid) {
+              const aiResponse: Message = {
+                id: `${Date.now()}-invalid-details`,
+                sender: Sender.AI,
+                type: MessageType.Text,
+                content: validation.feedback || "My apologies, that doesn't look like a campaign description. Could you tell me about the campaign you have in mind? For instance, 'A Diwali offer for new customers'.",
+              };
+              addMessage(aiResponse);
+              return;
+            }
         }
 
         createCheckpoint();
         
-        const extractedPartialParams = await analyzePromptWithAI(text);
+        const extractedPartialParams = await analyzePromptWithAI(textToProcess);
         
         // Filter out empty/null values from AI extraction to prevent overwriting existing valid params
         const updatedParams = Object.fromEntries(
@@ -175,11 +339,6 @@ function App() {
           errors.push(`Income bracket is invalid. Please use "High", "Low", or "Medium".`);
         }
 
-        const validCampaignTypes: Array<CampaignParameters['campaignType']> = ['activation', 'retention'];
-        if (currentParams.campaignType && !validCampaignTypes.includes(currentParams.campaignType)) {
-          errors.push(`Campaign Type is invalid. It must be 'activation' or 'retention'.`);
-        }
-
         if (errors.length > 0) {
             const aiResponse: Message = {
               id: `${Date.now()}-invalid-params`,
@@ -192,8 +351,9 @@ function App() {
         }
         
         const webhookResponse = await sendDataToWebhook(currentParams);
+        const aiResponseId = `${Date.now()}-webhook-response`;
         const aiResponse: Message = {
-          id: `${Date.now()}-webhook-response`,
+          id: aiResponseId,
           sender: Sender.AI,
           type: MessageType.Text,
           content: typeof webhookResponse === 'object' 
@@ -201,6 +361,12 @@ function App() {
                    : String(webhookResponse),
         };
         addMessage(aiResponse);
+
+        // Store the campaign data so we can generate images for it later
+        if (typeof webhookResponse === 'object' && webhookResponse.output && webhookResponse.output[0]) {
+            setLastCampaignData(webhookResponse.output[0]);
+            setLastCampaignMessageId(aiResponseId);
+        }
       }
     } catch (error) {
        const errorMessage: Message = {
@@ -228,17 +394,6 @@ function App() {
       return;
     }
     
-    if (!campaignParams.campaignType) {
-      const errorMessage: Message = {
-        id: `${Date.now()}-validation-error-campaign-type`,
-        sender: Sender.System,
-        type: MessageType.Text,
-        content: `Error: Campaign Type is a required field.`,
-      };
-      addMessage(errorMessage);
-      return;
-    }
-
     if (campaignParams.age && !isValidAge(campaignParams.age)) {
       const errorMessage: Message = {
         id: `${Date.now()}-validation-error-age`,
@@ -265,8 +420,9 @@ function App() {
 
     try {
       const webhookResponse = await sendDataToWebhook(campaignParams);
+      const aiResponseId = `${Date.now()}-webhook-response`;
       const aiResponse: Message = {
-        id: `${Date.now()}-webhook-response`,
+        id: aiResponseId,
         sender: Sender.AI,
         type: MessageType.Text,
         content: typeof webhookResponse === 'object' 
@@ -274,6 +430,12 @@ function App() {
                  : String(webhookResponse),
       };
       addMessage(aiResponse);
+
+      // Store the campaign data so we can generate images for it later
+      if (typeof webhookResponse === 'object' && webhookResponse.output && webhookResponse.output[0]) {
+          setLastCampaignData(webhookResponse.output[0]);
+          setLastCampaignMessageId(aiResponseId);
+      }
     } catch (error) {
        const errorMessage: Message = {
         id: `${Date.now()}-webhook-error`,
@@ -357,8 +519,9 @@ function App() {
 
     try {
       const webhookResponse = await sendDataToWebhook(campaignParams);
+      const aiResponseId = `${Date.now()}-webhook-response-regenerated`;
       const aiResponse: Message = {
-        id: `${Date.now()}-webhook-response-regenerated`,
+        id: aiResponseId,
         sender: Sender.AI,
         type: MessageType.Text,
         content: typeof webhookResponse === 'object' 
@@ -366,6 +529,12 @@ function App() {
                  : String(webhookResponse),
       };
       addMessage(aiResponse);
+      
+      // Store the campaign data so we can generate images for it later
+      if (typeof webhookResponse === 'object' && webhookResponse.output && webhookResponse.output[0]) {
+          setLastCampaignData(webhookResponse.output[0]);
+          setLastCampaignMessageId(aiResponseId);
+      }
     } catch (error) {
        const errorMessage: Message = {
         id: `${Date.now()}-webhook-error-regenerated`,
@@ -410,15 +579,12 @@ function App() {
                   isLoading={isLoading}
                   onApproveCampaign={handleApproveCampaign}
                   onRegenerateCampaign={handleRegenerateCampaign}
+                  onSendMessage={handleSendMessage}
                 />
               </main>
-              <footer className="bg-purple-deep border-t border-purple-secondary/30 p-4 md:p-6">
-                <ChatInput 
-                  onSendMessage={handleSendMessage} 
-                  isLoading={isLoading} 
-                  isSegmentNameSet={!!campaignParams.segmentName}
-                />
-              </footer>
+              <div className="p-4 md:p-6 lg:p-8 bg-purple-deep border-t border-purple-secondary/20">
+                <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} isSegmentNameSet={!!campaignParams.segmentName} />
+              </div>
             </div>
           </div>
         </div>

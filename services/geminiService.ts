@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { CampaignParameters, Campaign } from "../types";
 
@@ -6,17 +7,13 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const campaignSchema = {
   type: Type.OBJECT,
   properties: {
-    campaignType: {
-        type: Type.STRING,
-        description: "The type of campaign. This must be either 'activation' for acquiring new customers or engaging inactive ones, or 'retention' for keeping existing customers. If the user's prompt implies one of these, extract it."
-    },
     merchantCategory: {
       type: Type.STRING,
       description: "The category of merchant, e.g., Dining, Entertainment, Food, Grocery, Travel, Shopping."
     },
     age: {
       type: Type.STRING,
-      description: "The age of the target customer. If the user provides an age or age range (e.g., '44', '44 years', '34 to 45'), extract it exactly as provided. The application's validation logic will handle checking if the format is a range."
+      description: "The age or age range of the target customer (e.g., '25-30', '40s', 'over 50', '34 to 45'). Extract exactly as provided."
     },
     gender: {
       type: Type.STRING,
@@ -24,19 +21,19 @@ const campaignSchema = {
     },
     userType: {
       type: Type.STRING,
-      description: "The type of user (Power, Regular, At Risk)."
+      description: "The type of user. Map terms like 'frequent', 'heavy' to 'Power'. Map 'normal', 'standard' to 'Regular'. Map 'churning', 'leaving' to 'At Risk'."
     },
     incomeBracket: {
       type: Type.STRING,
-      description: "The income bracket of the user. If the user provides one of the exact values 'High', 'Low', or 'Medium', extract it. If the user provides any other value for income (like a number or different word), extract that value verbatim so it can be validated."
+      description: "The income bracket. Map terms like 'wealthy', 'rich', 'high earner' to 'High'. Map 'average' to 'Medium'. Map 'budget', 'economical' to 'Low'. If a specific amount is given, extract it verbatim."
     },
     daysOnboarded: {
       type: Type.STRING,
-      description: "The number of days the user has been onboarded."
+      description: "The number of days the user has been onboarded (e.g. '90', '30')."
     },
     specialFestiveSeason: {
       type: Type.STRING,
-      description: "Any special festive season mentioned, e.g., Diwali, Eid, Holi, Christmas."
+      description: "The special festive season or occasion mentioned (e.g., Diwali, Christmas, New Year, Holi, Eid)."
     },
   },
 };
@@ -103,7 +100,24 @@ export async function analyzePromptWithAI(prompt: string): Promise<Partial<Campa
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: `Analyze the user's request and extract the campaign parameters based on the provided schema. Only fill in the values that are explicitly mentioned in the request. For the income bracket, be aware that users might provide specific monetary values (e.g., '44 lacs per annum', '50k per month'). If you see such a value, extract it verbatim as the incomeBracket, even if general terms like 'low income' are also present. For age, extract any number or range the user mentions (e.g., '44', '44 years', '30-40') exactly as they wrote it, so the system can validate the format. The user's request is: "${prompt}"`,
+      contents: `Analyze the user's request and intelligently extract the campaign parameters based on the provided schema. 
+      
+      The user is describing a marketing campaign. Your goal is to identify values for:
+      1. Merchant Category (e.g. Dining)
+      2. Age (e.g. 34 to 45)
+      3. Gender (e.g. Male)
+      4. User Type (e.g. Power)
+      5. Income Bracket (e.g. High)
+      6. Days Onboarded (e.g. 90)
+      7. Special Festive Season (e.g. Diwali)
+
+      Only fill in the values that are explicitly mentioned or strongly implied by keywords in the request. 
+      
+      For 'Income Bracket', map terms like 'wealthy', 'high net worth' to 'High'.
+      For 'User Type', map terms like 'loyal', 'frequent' to 'Power'.
+      For 'Age', extract the exact number or range mentioned.
+      
+      The user's request is: "${prompt}"`,
       config: {
         responseMimeType: "application/json",
         responseSchema: campaignSchema,
@@ -121,20 +135,80 @@ export async function analyzePromptWithAI(prompt: string): Promise<Partial<Campa
   }
 }
 
+export async function recommendCampaignIdea(userInput: string): Promise<string> {
+  const prompt = `The user is asking for a marketing campaign idea.
+  User Input: "${userInput}"
+  
+  Please extract any Merchant Category (e.g., Dining, Travel) and Festive Season (e.g., Diwali, Christmas) mentioned. If not mentioned, assume generic.
+  
+  Based on this, generate a single, creative, 1-2 sentence marketing campaign description suitable for a credit card product. 
+  Example Output: "Earn 10% cashback on all dining spends during the Diwali weekend."
+  
+  Return ONLY the campaign description text.`;
+
+  try {
+     const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    return response.text.trim();
+  } catch (error) {
+    console.error("Error recommending campaign:", error);
+    throw new Error("Could not generate a recommendation.");
+  }
+}
+
+export async function generateCampaignImage(campaign: Campaign, params: CampaignParameters): Promise<string> {
+  const prompt = `Create a high-quality, professional advertisement image for the following marketing campaign:
+  
+  Headline: ${campaign.Header}
+  Copy: ${campaign.Body}
+  
+  Target Audience: ${params.segmentName}
+  Demographics: ${params.age || 'General'}, ${params.gender || 'All'}, ${params.incomeBracket || 'All Income'}
+  Context: ${params.specialFestiveSeason || 'General Promotion'}
+  Merchant Category: ${params.merchantCategory || 'General'}
+  
+  The image should be visually striking, suitable for a mobile app feed or email header. No text on image is preferred, but if necessary, only the headline should be visible in a modern font.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [{ text: prompt }],
+      },
+      config: {
+        imageConfig: {
+            aspectRatio: "16:9"
+        }
+      },
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+    throw new Error("No image data found in response");
+  } catch (error) {
+    console.error("Error generating campaign image:", error);
+    throw error;
+  }
+}
+
 export async function sendDataToWebhook(payload: CampaignParameters) {
   const webhookUrl = 'https://subhadevp.app.n8n.cloud/webhook-test/09e1de49-2634-424d-a0d3-52deaa861da6';
   
   // Create a structured payload with all collected customer data
   const webhookPayload = {
       "Segment Name": payload.segmentName,
-      "Campaign Type": payload.campaignType,
       "Favourite Merchant Category": payload.merchantCategory,
       "Age": payload.age,
       "Gender": payload.gender,
       "Type of User": payload.userType,
-      "Income bracket": payload.incomeBracket,
+      "Income Bracket": payload.incomeBracket,
       "Days Onboarded": payload.daysOnboarded,
-      "Festive season": payload.specialFestiveSeason,
+      "Special Festive Season": payload.specialFestiveSeason,
   };
 
   try {
@@ -195,7 +269,6 @@ export async function sendApprovalToWebhook(campaign: Campaign, campaignParams: 
       "Body": campaign.Body,
       // Campaign Input Data
       "Segment Name": campaignParams.segmentName,
-      "Campaign Type": campaignParams.campaignType,
       "Merchant Category": campaignParams.merchantCategory,
       "Age": campaignParams.age,
       "Gender": campaignParams.gender,

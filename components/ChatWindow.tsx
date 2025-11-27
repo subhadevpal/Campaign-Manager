@@ -13,9 +13,10 @@ interface ChatWindowProps {
   isLoading: boolean;
   onApproveCampaign: (campaign: Campaign, messageId: string) => void;
   onRegenerateCampaign: (messageId: string) => void;
+  onSendMessage: (message: string) => void;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onApproveCampaign, onRegenerateCampaign }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onApproveCampaign, onRegenerateCampaign, onSendMessage }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -43,6 +44,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, onA
                 isLoading={isLoading}
                 onApproveCampaign={onApproveCampaign}
                 onRegenerateCampaign={onRegenerateCampaign}
+                onSendMessage={onSendMessage}
               />
             );
         }

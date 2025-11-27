@@ -21,6 +21,11 @@ export interface FunctionResultData {
   result: any;
 }
 
+export interface MessageOption {
+  label: string;
+  value: string;
+}
+
 export interface Message {
   id: string;
   sender: Sender;
@@ -29,11 +34,11 @@ export interface Message {
   functionCall?: FunctionCallData;
   functionResult?: FunctionResultData;
   isApproved?: boolean;
+  options?: MessageOption[];
 }
 
 export interface CampaignParameters {
   segmentName: string;
-  campaignType: 'activation' | 'retention' | '';
   merchantCategory: string;
   age: string;
   gender: string;
@@ -49,4 +54,5 @@ export interface Campaign {
   Campaign_ID: string;
   Header: string;
   Channel: string[];
+  imageUrl?: string;
 }

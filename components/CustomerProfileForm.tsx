@@ -22,7 +22,7 @@ export const CustomerProfileForm: React.FC<CustomerProfileFormProps> = ({ profil
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoading && profile.segmentName.trim() && profile.campaignType) {
+    if (!isLoading && profile.segmentName.trim()) {
       onSubmit();
     }
   };
@@ -54,23 +54,6 @@ export const CustomerProfileForm: React.FC<CustomerProfileFormProps> = ({ profil
               placeholder="e.g., Young Professionals" 
               required 
             />
-          </div>
-          <div>
-            <label htmlFor="campaignType" className={labelClasses}>
-              Campaign Type <span className="text-accent-yellow">*</span>
-            </label>
-            <select 
-                name="campaignType" 
-                id="campaignType" 
-                value={profile.campaignType} 
-                onChange={handleChange} 
-                className={inputClasses}
-                required
-            >
-                <option value="" disabled>Select Type</option>
-                <option value="activation">Activation</option>
-                <option value="retention">Retention</option>
-            </select>
           </div>
           <div>
             <label htmlFor="merchantCategory" className={labelClasses}>Favourite Merchant Category</label>
@@ -119,7 +102,7 @@ export const CustomerProfileForm: React.FC<CustomerProfileFormProps> = ({ profil
         <div className="mt-8 pt-6 border-t border-purple-secondary/20">
             <button
               type="submit"
-              disabled={isLoading || !profile.segmentName.trim() || !profile.campaignType}
+              disabled={isLoading || !profile.segmentName.trim()}
               className="w-full flex items-center justify-center gap-3 p-4 bg-accent-yellow text-purple-deep font-bold rounded-xl hover:opacity-90 disabled:bg-accent-yellow/50 disabled:cursor-not-allowed transition-all shadow-lg shadow-accent-yellow/20"
             >
               <SparklesIcon className="w-5 h-5"/>

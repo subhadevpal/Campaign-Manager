@@ -14,6 +14,16 @@ interface CampaignCardProps {
 export const CampaignCard: React.FC<CampaignCardProps> = ({ campaign, onApprove, onRegenerate, isApproved, isLoading }) => {
   return (
     <div className="space-y-4 text-text-primary">
+      {campaign.imageUrl && (
+        <div className="rounded-lg overflow-hidden w-full shadow-lg mb-4 bg-purple-deep/50">
+          <img 
+            src={campaign.imageUrl} 
+            alt={`Campaign creative for ${campaign.Header}`}
+            className="w-full h-auto object-cover hover:scale-105 transition-transform duration-500"
+          />
+        </div>
+      )}
+
       <h3 className="text-xl font-bold text-accent-yellow">{campaign.Header}</h3>
       <p className="text-base text-text-primary/90">{campaign.Body}</p>
       
